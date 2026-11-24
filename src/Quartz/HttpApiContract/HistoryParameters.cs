@@ -73,6 +73,17 @@ internal sealed record HistoryParameters
     public string[]? Results { get; init; }
 
     /// <summary>
+    /// The <c>origin</c> parameter's value: a <see cref="FiringOrigin" /> name.
+    /// </summary>
+    public string? Origin { get; init; }
+
+    /// <summary>
+    /// The <c>exceptionType</c> parameter as the query string carried it: the full name of the type of
+    /// what the job threw, matched exactly.
+    /// </summary>
+    public string? ExceptionType { get; init; }
+
+    /// <summary>
     /// The <c>reasons</c> parameter's values: <see cref="MisfireReason" /> names.
     /// </summary>
     public string[]? Reasons { get; init; }
@@ -126,6 +137,32 @@ internal sealed record HistoryParameters
     /// </summary>
     /// <exception cref="InvalidRequestException">A value names no result.</exception>
     public IReadOnlyCollection<JobRunResult>? ResultSet() => ReadSet<JobRunResult>(Results, "results");
+
+    /// <summary>
+    /// The origin asked for, or <see langword="null" /> when the parameter is absent or blank.
+    /// </summary>
+    /// <exception cref="InvalidRequestException">A value names no origin.</exception>
+    public FiringOrigin? OriginValue()
+    {
+        if (string.IsNullOrWhiteSpace(Origin))
+        {
+            return null;
+        }
+
+        if (!Enum.TryParse(Origin.Trim(), ignoreCase: true, out FiringOrigin origin) || !Enum.IsDefined(origin))
+        {
+            throw new InvalidRequestException(
+                $"Unknown origin value '{Origin}'. Expected one of: {string.Join(", ", Enum.GetNames<FiringOrigin>())}");
+        }
+
+        return origin;
+    }
+
+    /// <summary>
+    /// The exception type asked for, matched exactly, or <see langword="null" /> when the parameter is
+    /// absent or blank.
+    /// </summary>
+    public string? ExceptionTypeValue() => string.IsNullOrWhiteSpace(ExceptionType) ? null : ExceptionType;
 
     /// <summary>
     /// The misfire reasons asked for, or <see cref="ReasonsEveryReaderKnows" /> when the request named none.

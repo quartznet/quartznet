@@ -112,6 +112,12 @@ public partial class StdAdoDelegate
     /// </remarks>
     internal const int MaxErrorMessageLength = 1000;
 
+    /// <summary>
+    /// The most characters an exception type is stored with. A full type name is a namespace and a name,
+    /// occasionally with generic arguments; 200 holds any of them that is not pathological.
+    /// </summary>
+    internal const int MaxExceptionTypeLength = 200;
+
     /// <summary>Records one execution.</summary>
     /// <param name="conn">The unit of work, which is the history store's own connection.</param>
     /// <param name="entryId">The row's key, which the store mints.</param>
@@ -172,6 +178,14 @@ public partial class StdAdoDelegate
             // ExecutionHistoryOptions.MaxInputBytes, and a cut one would be a different input.
             new SqlStatementParameter(SqlParameters.HistoryJobInput, entry.Input, largeText),
             new SqlStatementParameter(SqlParameters.HistoryJobInputTooLarge, GetDbBooleanValue(entry.InputTooLarge)),
+
+            // When the run was due, how late it started and why it ran: the due time as a timestamp like
+            // the fire time, the delay in ticks like the run time, the origin as its integer, and the
+            // exception type cut to its column. Each is null on a row that has none to record.
+            new SqlStatementParameter(SqlParameters.HistoryDueTime, GetDbDateTimeValue(entry.DueTimeUtc)),
+            new SqlStatementParameter(SqlParameters.HistoryStartDelay, entry.StartDelay?.Ticks),
+            new SqlStatementParameter(SqlParameters.HistoryOrigin, entry.Origin is { } origin ? (int) origin : null),
+            new SqlStatementParameter(SqlParameters.HistoryExceptionType, CutToColumn(entry.ExceptionType, AdoConstants.ColumnExceptionType, MaxExceptionTypeLength)),
         ]);
     }
 
@@ -1300,6 +1314,8 @@ public partial class StdAdoDelegate
         AppendJobPredicate(predicate, parameters, query.Job);
         AppendTriggerPredicate(predicate, parameters, query.Trigger);
         AppendFireInstancePredicate(predicate, parameters, query.FireInstanceId);
+        AppendOriginPredicate(predicate, parameters, query.Origin);
+        AppendExceptionTypePredicate(predicate, parameters, query.ExceptionType);
         AppendInstantPredicate(predicate, parameters, StdAdoConstants.SqlExecutionHistoryFiredFrom, SqlParameters.HistoryFiredFrom, query.FiredFrom);
         AppendInstantPredicate(predicate, parameters, StdAdoConstants.SqlExecutionHistoryFiredBefore, SqlParameters.HistoryFiredBefore, query.FiredBefore);
 
@@ -1419,6 +1435,36 @@ public partial class StdAdoDelegate
 
         predicate.Append(StdAdoConstants.SqlExecutionHistoryFireInstancePredicate);
         parameters.Add(new KeyValuePair<string, object?>(SqlParameters.HistoryFireInstanceId, fireInstanceId));
+    }
+
+    /// <summary>Narrows an execution read to the runs that ran for one reason.</summary>
+    private static void AppendOriginPredicate(
+        StringBuilder predicate,
+        List<KeyValuePair<string, object?>> parameters,
+        FiringOrigin? origin)
+    {
+        if (origin is null)
+        {
+            return;
+        }
+
+        predicate.Append(StdAdoConstants.SqlExecutionHistoryOriginPredicate);
+        parameters.Add(new KeyValuePair<string, object?>(SqlParameters.HistoryOrigin, (int) origin.Value));
+    }
+
+    /// <summary>Narrows an execution read to the runs that failed with one exception type, matched exactly.</summary>
+    private static void AppendExceptionTypePredicate(
+        StringBuilder predicate,
+        List<KeyValuePair<string, object?>> parameters,
+        string? exceptionType)
+    {
+        if (string.IsNullOrWhiteSpace(exceptionType))
+        {
+            return;
+        }
+
+        predicate.Append(StdAdoConstants.SqlExecutionHistoryExceptionTypePredicate);
+        parameters.Add(new KeyValuePair<string, object?>(SqlParameters.HistoryExceptionType, exceptionType));
     }
 
     /// <summary>Narrows a history read to the rows on one side of an instant.</summary>
@@ -1632,7 +1678,11 @@ public partial class StdAdoDelegate
             MetricsJson = ReadOptionalString(rs, outcome.Metrics),
             Manual = ReadOptionalFlag(rs, outcome.Manual),
             FireInstanceId = ReadOptionalString(rs, outcome.FireInstanceId),
-            InputTooLarge = ReadOptionalFlag(rs, outcome.InputTooLarge)
+            InputTooLarge = ReadOptionalFlag(rs, outcome.InputTooLarge),
+            DueTimeUtc = ReadOptionalInstant(rs, outcome.DueTime),
+            StartDelay = ReadOptionalDelay(rs, outcome.StartDelay),
+            Origin = ReadOrigin(rs, outcome.Origin),
+            ExceptionType = ReadOptionalString(rs, outcome.ExceptionType)
         };
     }
 
@@ -1698,15 +1748,47 @@ public partial class StdAdoDelegate
         return Enum.IsDefined(result) ? result : null;
     }
 
+    /// <summary>A timestamp column's value, or <see langword="null" /> when it is null or not in the result set.</summary>
+    private DateTimeOffset? ReadOptionalInstant(DbDataReader rs, int ordinal)
+    {
+        return ordinal < 0 || rs.IsDBNull(ordinal) ? null : GetDateTimeFromDbValue(rs.GetValue(ordinal));
+    }
+
+    /// <summary>A ticks column's value as a <see cref="TimeSpan" />, or <see langword="null" /> when it is null or not in the result set.</summary>
+    private static TimeSpan? ReadOptionalDelay(DbDataReader rs, int ordinal)
+    {
+        return ordinal < 0 || rs.IsDBNull(ordinal)
+            ? null
+            : TimeSpan.FromTicks(Convert.ToInt64(rs.GetValue(ordinal), CultureInfo.InvariantCulture));
+    }
+
+    /// <summary>
+    /// A row's <c>ORIGIN</c>: <see langword="null" /> on a row a 4.8 node wrote, and for a value a newer
+    /// node wrote that this one does not know.
+    /// </summary>
+    private static FiringOrigin? ReadOrigin(DbDataReader rs, int ordinal)
+    {
+        if (ordinal < 0 || rs.IsDBNull(ordinal))
+        {
+            return null;
+        }
+
+        // Not GetInt32: Oracle hands back a decimal for a NUMBER column.
+        FiringOrigin origin = (FiringOrigin) Convert.ToInt32(rs.GetValue(ordinal), CultureInfo.InvariantCulture);
+        return Enum.IsDefined(origin) ? origin : null;
+    }
+
     /// <summary>
     /// Where the 4.4 outcome columns stand in a history read, or <c>-1</c> for one it does not carry.
     /// </summary>
     /// <remarks>
     /// Found by name, once per read, as the acquisition's non-concurrency flag is: a statement written
-    /// before 4.4 does not project them, and its rows still read, with no outcome.
+    /// before 4.4 does not project them, and its rows still read, with no outcome. The 4.9 columns are
+    /// found the same way, so a statement written before 4.9 reads with no due time, delay, origin or
+    /// exception type.
     /// </remarks>
     [StructLayout(LayoutKind.Auto)]
-    private readonly record struct ExecutionHistoryOrdinals(int Result, int Summary, int Metrics, int Manual, int FireInstanceId, int InputTooLarge)
+    private readonly record struct ExecutionHistoryOrdinals(int Result, int Summary, int Metrics, int Manual, int FireInstanceId, int InputTooLarge, int DueTime, int StartDelay, int Origin, int ExceptionType)
     {
         public static ExecutionHistoryOrdinals Of(DbDataReader rs) => new(
             OptionalOrdinal(rs, AdoConstants.ColumnResult),
@@ -1714,7 +1796,11 @@ public partial class StdAdoDelegate
             OptionalOrdinal(rs, AdoConstants.ColumnMetrics),
             OptionalOrdinal(rs, AdoConstants.ColumnManual),
             OptionalOrdinal(rs, AdoConstants.ColumnFireInstanceId),
-            OptionalOrdinal(rs, AdoConstants.ColumnJobInputTooLarge));
+            OptionalOrdinal(rs, AdoConstants.ColumnJobInputTooLarge),
+            OptionalOrdinal(rs, AdoConstants.ColumnDueTime),
+            OptionalOrdinal(rs, AdoConstants.ColumnStartDelay),
+            OptionalOrdinal(rs, AdoConstants.ColumnOrigin),
+            OptionalOrdinal(rs, AdoConstants.ColumnExceptionType));
     }
 
     private MisfireHistoryEntry ReadMisfireHistoryEntry(DbDataReader rs, string schedulerName)

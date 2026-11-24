@@ -425,10 +425,12 @@ namespace Quartz
     public sealed record ExecutionHistoryEntry : System.IEquatable<Quartz.ExecutionHistoryEntry>
     {
         public ExecutionHistoryEntry(string SchedulerName, string SchedulerInstanceId, string JobGroup, string JobName, string TriggerGroup, string TriggerName, System.DateTimeOffset FiredAtUtc, System.TimeSpan Duration, bool Succeeded, string? ExceptionMessage) { }
+        public System.DateTimeOffset? DueTimeUtc { get; init; }
         public System.TimeSpan Duration { get; init; }
         public Quartz.JobRunResult EffectiveResult { get; }
         public string? EntryId { get; init; }
         public string? ExceptionMessage { get; init; }
+        public string? ExceptionType { get; init; }
         public string? FireInstanceId { get; init; }
         public System.DateTimeOffset FiredAtUtc { get; init; }
         public string? Input { get; init; }
@@ -438,11 +440,13 @@ namespace Quartz
         public string? Log { get; init; }
         public bool Manual { get; init; }
         public string? MetricsJson { get; init; }
+        public Quartz.FiringOrigin? Origin { get; init; }
         public Quartz.JobRunResult? Result { get; init; }
         public int RetryAttempt { get; init; }
         public bool RetryScheduled { get; init; }
         public string SchedulerInstanceId { get; init; }
         public string SchedulerName { get; init; }
+        public System.TimeSpan? StartDelay { get; init; }
         public bool Succeeded { get; init; }
         public string? Summary { get; init; }
         public string TriggerGroup { get; init; }
@@ -463,12 +467,14 @@ namespace Quartz
     public sealed record ExecutionHistoryQuery : Quartz.PagedQuery, System.IEquatable<Quartz.ExecutionHistoryQuery>
     {
         public ExecutionHistoryQuery() { }
+        public string? ExceptionType { get; init; }
         public bool? FailedFinally { get; init; }
         public string? FireInstanceId { get; init; }
         public System.DateTimeOffset? FiredBefore { get; init; }
         public System.DateTimeOffset? FiredFrom { get; init; }
         public Quartz.JobKey? Job { get; init; }
         public string? JobContains { get; init; }
+        public Quartz.FiringOrigin? Origin { get; init; }
         public System.Collections.Generic.IReadOnlyCollection<Quartz.JobRunResult>? Results { get; init; }
         public string? SchedulerInstanceId { get; init; }
         public required string SchedulerName { get; init; }
@@ -2868,10 +2874,12 @@ namespace Quartz.Impl.AdoJobStore
         public const string ColumnContinuesTriggerName = "CONTINUES_TRIGGER_NAME";
         public const string ColumnCronExpression = "CRON_EXPRESSION";
         public const string ColumnDescription = "DESCRIPTION";
+        public const string ColumnDueTime = "DUE_TIME";
         public const string ColumnEndTime = "END_TIME";
         public const string ColumnEntryId = "ENTRY_ID";
         public const string ColumnEntryState = "STATE";
         public const string ColumnErrorMessage = "ERROR_MESSAGE";
+        public const string ColumnExceptionType = "EXCEPTION_TYPE";
         public const string ColumnExecutionGroup = "EXECUTION_GROUP";
         public const string ColumnExecutionLog = "EXECUTION_LOG";
         public const string ColumnFailureCount = "FAILURE_COUNT";
@@ -2909,6 +2917,7 @@ namespace Quartz.Impl.AdoJobStore
         public const string ColumnMisfireThreshold = "MISFIRE_THRESHOLD";
         public const string ColumnMisfireTime = "MISFIRE_TIME";
         public const string ColumnNextFireTime = "NEXT_FIRE_TIME";
+        public const string ColumnOrigin = "ORIGIN";
         public const string ColumnOverlapPolicy = "OVERLAP_POLICY";
         public const string ColumnPauseReason = "PAUSE_REASON";
         public const string ColumnPausedAt = "PAUSED_AT";
@@ -2931,6 +2940,7 @@ namespace Quartz.Impl.AdoJobStore
         public const string ColumnRunTime = "RUN_TIME";
         public const string ColumnScheduledTime = "SCHED_TIME";
         public const string ColumnSchedulerName = "SCHED_NAME";
+        public const string ColumnStartDelay = "START_DELAY";
         public const string ColumnStartTime = "START_TIME";
         public const string ColumnSucceeded = "SUCCEEDED";
         public const string ColumnSummary = "SUMMARY";

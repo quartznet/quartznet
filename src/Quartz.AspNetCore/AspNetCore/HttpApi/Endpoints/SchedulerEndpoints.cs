@@ -470,6 +470,11 @@ internal static class SchedulerEndpoints
     /// From 4.6, <c>triggerGroup</c> with <c>triggerName</c> narrows to one trigger exactly, and
     /// <c>fireInstanceId</c> to one firing. A host before 4.6 ignores all three.
     /// </para>
+    /// <para>
+    /// From 4.9, <c>origin</c> narrows to the runs that ran for one reason — <c>schedule</c>,
+    /// <c>manual</c> or <c>backfill</c> — and <c>exceptionType</c> to the runs that failed with one
+    /// exception type, matched exactly by its full name. A host before 4.9 ignores both.
+    /// </para>
     /// </remarks>
     [ProducesResponseType(typeof(PagedResultDto<ExecutionHistoryEntryDto>), StatusCodes.Status200OK)]
     private static Task<IResult> QueryExecutionHistory(
@@ -494,6 +499,8 @@ internal static class SchedulerEndpoints
         [Description(TriggerGroupDescription)] string? triggerGroup = null,
         [Description(TriggerNameDescription)] string? triggerName = null,
         [Description(FireInstanceIdDescription)] string? fireInstanceId = null,
+        [Description(OriginDescription)] string? origin = null,
+        [Description(ExceptionTypeDescription)] string? exceptionType = null,
         CancellationToken cancellationToken = default)
     {
         ListingParameters listing = endpointHelper.Listing(skip, take, includeTotalCount);
@@ -506,7 +513,9 @@ internal static class SchedulerEndpoints
             FireInstanceId = fireInstanceId,
             FiredFrom = firedFrom,
             FiredBefore = firedBefore,
-            Results = results
+            Results = results,
+            Origin = origin,
+            ExceptionType = exceptionType
         };
 
         return endpointHelper.ExecuteWithJsonResponse(schedulerName, target, httpContext, schedulerRepository, scheduler => SchedulerOperations.QueryExecutionHistory(
@@ -528,6 +537,10 @@ internal static class SchedulerEndpoints
     private const string TriggerNameDescription = "The trigger's name, matched exactly; needs triggerGroup";
 
     private const string FireInstanceIdDescription = "Only the executions of this firing, matched exactly";
+
+    private const string OriginDescription = "Only the executions that ran for this reason: Schedule, Manual, Backfill";
+
+    private const string ExceptionTypeDescription = "Only the executions that failed with this exception type, matched exactly by its full name";
 
     private const string ReasonsDescription = "Only these reasons: Missed, Overlap, Vetoed. Repeated or comma-separated; "
                                               + "without it, Missed and Overlap, which every client can read";

@@ -499,18 +499,27 @@ internal sealed class Meters : IDisposable
     /// <c>BatchTriggerAcquisitionFireAheadTimeWindow</c> lets the loop do: it was not late, and a negative
     /// sample would pull every percentile of the histogram down.
     /// </para>
+    /// <para>
+    /// The history records the same number: the run shell measures it here too, so the row and the histogram
+    /// agree. The two readings are one call apart, on the same clock and from the same due time.
+    /// </para>
     /// </remarks>
-    /// <param name="tags">The identity tags, by value: the origin added here stays off the running count's.</param>
-    /// <param name="context">The firing.</param>
     /// <param name="dueTimeUtc">When this attempt was due, or <see langword="null" /> when the store did not say.</param>
+    /// <param name="context">The firing.</param>
     /// <param name="timeProvider">The clock the firing is timed by.</param>
-    private void RecordStartDelay(TagList tags, IJobExecutionContext context, DateTimeOffset? dueTimeUtc, TimeProvider timeProvider)
+    internal static TimeSpan MeasureStartDelay(DateTimeOffset? dueTimeUtc, IJobExecutionContext context, TimeProvider timeProvider)
     {
         DateTimeOffset due = dueTimeUtc ?? context.ScheduledFireTimeUtc ?? context.FireTimeUtc;
         TimeSpan delay = timeProvider.GetUtcNow() - due;
+        return delay > TimeSpan.Zero ? delay : TimeSpan.Zero;
+    }
+
+    private void RecordStartDelay(TagList tags, IJobExecutionContext context, DateTimeOffset? dueTimeUtc, TimeProvider timeProvider)
+    {
+        TimeSpan delay = MeasureStartDelay(dueTimeUtc, context, timeProvider);
 
         tags.Add(ActivityTags.FiringOrigin, FiringOriginTag(context.GetOccurrence().Origin));
-        jobExecuteStartDelay.Record(delay > TimeSpan.Zero ? delay.TotalSeconds : 0, tags);
+        jobExecuteStartDelay.Record(delay.TotalSeconds, tags);
     }
 
     /// <summary>

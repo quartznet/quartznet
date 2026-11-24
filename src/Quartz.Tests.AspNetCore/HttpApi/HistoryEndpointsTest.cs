@@ -367,6 +367,40 @@ public sealed class HistoryEndpointsTest
             "from is inclusive and before is exclusive, so two windows that meet list each execution once");
     }
 
+    [Test]
+    public async Task ExecutionsCanBeNarrowedByOriginAndExceptionType()
+    {
+        // Inside the shipped store's retention window, which is measured against the wall clock.
+        DateTimeOffset start = DateTimeOffset.UtcNow.AddMinutes(-10);
+        await history.AddExecution(Run(start, "scheduled", JobRunResult.Succeeded) with { Origin = FiringOrigin.Schedule });
+        await history.AddExecution(Run(start.AddMinutes(1), "manual", JobRunResult.Succeeded) with { Origin = FiringOrigin.Manual });
+        await history.AddExecution(Run(start.AddMinutes(2), "failed", JobRunResult.Failed) with
+        {
+            Origin = FiringOrigin.Schedule,
+            ExceptionType = typeof(InvalidOperationException).FullName
+        });
+
+        PagedResultDto<ExecutionHistoryEntryDto> manual = await Read<PagedResultDto<ExecutionHistoryEntryDto>>(
+            $"{SchedulerUrl}/history/executions?origin=manual");
+        manual.Items.Should().ContainSingle().Which.JobName.Should().Be("manual",
+            "a manual run is the one an operator asked for, and nothing else is");
+
+        PagedResultDto<ExecutionHistoryEntryDto> failed = await Read<PagedResultDto<ExecutionHistoryEntryDto>>(
+            $"{SchedulerUrl}/history/executions?exceptionType=" + Uri.EscapeDataString(typeof(InvalidOperationException).FullName!));
+        failed.Items.Should().ContainSingle().Which.JobName.Should().Be("failed",
+            "failures group by the type of what the job threw");
+
+        HttpExecutionHistoryStore remote = new(TestData.SchedulerName, client);
+        (await remote.QueryExecutions(new ExecutionHistoryQuery { SchedulerName = TestData.SchedulerName, Origin = FiringOrigin.Backfill }))
+            .Items.Should().BeEmpty("no backfill ran, so none is listed");
+        (await remote.QueryExecutions(new ExecutionHistoryQuery
+        {
+            SchedulerName = TestData.SchedulerName,
+            ExceptionType = typeof(InvalidOperationException).FullName
+        })).Items.Should().ContainSingle("the HTTP-backed store sends the exception type, and the host applies it")
+            .Which.JobName.Should().Be("failed");
+    }
+
     /// <summary>
     /// A caller holding a firing's id, from a listener or the fire-instance listing, reads that firing's
     /// outcome; a caller holding a trigger's key reads what that trigger fired, and no other's.
@@ -444,6 +478,7 @@ public sealed class HistoryEndpointsTest
         counted.Buckets.Sum(bucket => bucket.RunCount).Should().Be(1, "the HTTP-backed store sends both, and the host counts by both");
     }
 
+    [TestCase("origin=Sideways", "Unknown origin value 'Sideways'*Schedule, Manual, Backfill*")]
     [TestCase("jobName=release-stale", "Both jobName and jobGroup*")]
     [TestCase("triggerGroup=DummyTriggerGroup", "Both triggerName and triggerGroup*")]
     [TestCase("results=Sideways", "Unknown results value 'Sideways'*Succeeded, Failed, Cancelled, Skipped*")]
@@ -471,7 +506,11 @@ public sealed class HistoryEndpointsTest
             Summary = "no stale reservations",
             MetricsJson = """{"scanned":1200,"released":0,"ratio":0.25,"note":"café <b>","ok":true,"nothing":null}""",
             Manual = true,
-            FireInstanceId = "node-a-17"
+            FireInstanceId = "node-a-17",
+            DueTimeUtc = DateTimeOffset.UtcNow.AddMinutes(-1),
+            StartDelay = TimeSpan.FromSeconds(2),
+            Origin = FiringOrigin.Manual,
+            ExceptionType = typeof(InvalidOperationException).FullName
         };
         await history.AddExecution(recorded);
 

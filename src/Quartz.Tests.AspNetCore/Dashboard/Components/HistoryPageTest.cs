@@ -511,7 +511,7 @@ public class HistoryPageTest
         page.Find("table.qz-table").ClassList.Should().Contain("qz-history-table",
             "the modifier is what gives the columns fixed widths, without which the keys and the error widen the table");
         page.FindAll("thead th").Select(th => th.ClassName).Should().Equal(
-            ["qz-col-key", "qz-col-key", "qz-col-node", "qz-col-fired", "qz-col-duration", "qz-col-result", "qz-col-summary", "qz-col-error", "qz-col-actions"]);
+            ["qz-col-key", "qz-col-key", "qz-col-node", "qz-col-fired", "qz-col-duration", "qz-col-late", "qz-col-result", "qz-col-summary", "qz-col-error", "qz-col-actions"]);
         page.Find("td.qz-col-node").Should().NotBeNull("the node cell is the one the narrower layouts hide, so it carries the class too");
         page.Find("td.qz-col-actions [data-testid=history-run-again]").Should().NotBeNull();
 
@@ -1097,6 +1097,88 @@ public class HistoryPageTest
         page.Find(".qz-metric-chip").GetAttribute("title").Should().Be("scanned: 1200",
             "a chip stays on one line and a long one is cut with an ellipsis, so its title carries the whole of it");
         page.FindAll("[data-testid=history-manual]").Should().ContainSingle("the run was asked for, not fired by a schedule");
+    }
+
+    [Test]
+    public void ALateColumnShowsHowLateEachRunStarted()
+    {
+        GivenHistory(
+            Entry(100) with { StartDelay = TimeSpan.FromSeconds(12) },
+            Entry(100) with { StartDelay = TimeSpan.FromMilliseconds(400) },
+            Entry(100));
+
+        IRenderedComponent<History> page = context.Render<History>();
+
+        page.TextOfAll("[data-testid=history-late]").Should().Equal(["12 s", "", "—"],
+            "a run that started twelve seconds late says so, one under a second reads as on time, and a row written before 4.9 does not say");
+    }
+
+    [Test]
+    public void ABackfilledRunWearsABackfillBadgeAndAManualOneItsManualBadge()
+    {
+        GivenHistory(
+            Entry(100) with { Origin = FiringOrigin.Backfill },
+            Entry(100) with { Manual = true },
+            Entry(100) with { Origin = FiringOrigin.Schedule });
+
+        IRenderedComponent<History> page = context.Render<History>();
+
+        page.FindAll("[data-testid=history-backfill]").Should().ContainSingle("the run filled a slot the schedule had");
+        page.FindAll("[data-testid=history-manual]").Should().ContainSingle(
+            "the run was asked for, and a row written before 4.9 still says so by the manual flag it was written with");
+    }
+
+    [Test]
+    public void AnErrorCellShowsTheShortTypeWithTheWholeFailureInItsTitle()
+    {
+        GivenHistory(Entry(100, succeeded: false, exceptionMessage: "the upstream system is down") with
+        {
+            ExceptionType = "System.InvalidOperationException"
+        });
+
+        IRenderedComponent<History> page = context.Render<History>();
+
+        IElement shown = page.Find("[data-testid=history-error] .qz-history-clamp");
+        shown.TextContent.Should().Be("InvalidOperationException",
+            "the cell names the type a reader groups failures by, not the namespace it lives in");
+        shown.GetAttribute("title").Should().Be("System.InvalidOperationException: the upstream system is down",
+            "the cell is cut to two lines, and the title carries the whole of what failed");
+    }
+
+    [Test]
+    public void TheOriginFilterAsksForTheOriginTheUrlNames()
+    {
+        GivenHistory(Run(JobRunResult.Succeeded));
+
+        context.Navigate("/quartz/history?origin=backfill");
+
+        IRenderedComponent<History> page = context.Render<History>();
+
+        A.CallTo(() => context.Api.QueryExecutions(
+                A<DashboardHistoryQuery>.That.Matches(query => query.Origin == FiringOrigin.Backfill),
+                A<CancellationToken>._))
+            .MustHaveHappened();
+
+        page.Markup.Should().Contain("Origin: Backfill",
+            "the summary names the origin the listing is narrowed to");
+    }
+
+    [Test]
+    public void AnOriginNobodyRecognisesListsEveryOriginAgain()
+    {
+        GivenHistory(Run(JobRunResult.Succeeded));
+
+        context.Navigate("/quartz/history?origin=sideways");
+
+        IRenderedComponent<History> page = context.Render<History>();
+
+        A.CallTo(() => context.Api.QueryExecutions(
+                A<DashboardHistoryQuery>.That.Matches(query => query.Origin == null),
+                A<CancellationToken>._))
+            .MustHaveHappened();
+
+        page.Markup.Should().Contain("Any origin",
+            "an origin nobody recognises is dropped, as an unknown outcome is, rather than emptying the page");
     }
 
     [Test]

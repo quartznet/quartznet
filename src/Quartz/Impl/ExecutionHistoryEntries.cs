@@ -58,6 +58,7 @@ internal static class ExecutionHistoryEntries
         bool inputTooLarge = false)
     {
         JobRunClassification run = JobRunClassifier.Classify(context, jobException);
+        FiringOccurrence occurrence = context.GetOccurrence();
 
         return new ExecutionHistoryEntry(
             SchedulerName: context.Scheduler.SchedulerName,
@@ -76,6 +77,15 @@ internal static class ExecutionHistoryEntries
             MetricsJson = ExecutionMetricsWriter.Write(run.Metrics, logger, context.JobDetail.Key),
             Manual = ManualFiring.IsMarked(context.Trigger),
             FireInstanceId = context.FireInstanceId,
+
+            // When the run was due, and how late it started: the occurrence, so a backfill is due when
+            // its slot was, and the measured delay, from when the attempt itself was due, so a retry
+            // reports its own lateness and not its backoff. The delay is what the run shell measured at
+            // the job's start, or null on a firing that never ran through it.
+            DueTimeUtc = occurrence.OccurrenceUtc,
+            StartDelay = (context as JobExecutionContextImpl)?.StartDelay,
+            Origin = occurrence.Origin,
+            ExceptionType = jobException is null ? null : JobFailure.TypeOf(jobException),
 
             // Both are the scheduler's own reading of the firing that has just ended, published on the
             // context before any completion notification goes out. Together they are what lets a reader tell

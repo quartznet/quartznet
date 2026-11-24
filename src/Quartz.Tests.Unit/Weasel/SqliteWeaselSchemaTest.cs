@@ -133,7 +133,7 @@ public sealed class SqliteWeaselSchemaTest
     }
 
     /// <summary>
-    /// 4.3 → 4.9 only adds: five columns and an index on the history table, the rollup table, two lookup
+    /// 4.3 → 4.9 only adds: eleven columns and an index on the history table, the rollup table, two lookup
     /// indexes on the history table, the version column on the state table, the interrupt column on the
     /// fired-trigger table, the misfire threshold and fixed-delay columns on the triggers table, and the
     /// trigger rollup table.
@@ -152,7 +152,7 @@ public sealed class SqliteWeaselSchemaTest
 
             changed.Select(x => (x.SchemaObject.Identifier.Name.ToUpperInvariant(), x.Difference)).Should().BeEquivalentTo(
                 [("QRTZ_EXECUTION_HISTORY", SchemaPatchDifference.Update), ("QRTZ_JOB_STATUS", SchemaPatchDifference.Create), ("QRTZ_SCHEDULER_STATE", SchemaPatchDifference.Update), ("QRTZ_FIRED_TRIGGERS", SchemaPatchDifference.Update), ("QRTZ_TRIGGERS", SchemaPatchDifference.Update), ("QRTZ_TRIGGER_STATUS", SchemaPatchDifference.Create)],
-                "4.4 changes nothing a 4.3 schema has but the history table and adds the rollup, and 4.6 adds the version column to the state table, the interrupt column to the fired-trigger table and the misfire threshold to the triggers table, 4.7 the fixed-delay column to it, and 4.9 the trigger rollup: " + Describe(planned));
+                "4.4 changes nothing a 4.3 schema has but the history table and adds the rollup, and 4.6 adds the version column to the state table, the interrupt column to the fired-trigger table and the misfire threshold to the triggers table, 4.7 the fixed-delay column to it, and 4.9 the trigger rollup and the four history columns: " + Describe(planned));
 
             TableDelta triggers = changed.OfType<TableDelta>().Single(x => x.SchemaObject.Identifier.Name.Equals("QRTZ_TRIGGERS", StringComparison.OrdinalIgnoreCase));
             triggers.Columns.Missing.Select(x => x.Name.ToUpperInvariant()).Should().BeEquivalentTo(["MISFIRE_THRESHOLD", "FIXED_DELAY"],
@@ -163,7 +163,8 @@ public sealed class SqliteWeaselSchemaTest
 
             TableDelta history = changed.OfType<TableDelta>().Single(x => x.Difference == SchemaPatchDifference.Update && x.SchemaObject.Identifier.Name.Equals("QRTZ_EXECUTION_HISTORY", StringComparison.OrdinalIgnoreCase));
             history.Columns.Missing.Select(x => x.Name.ToUpperInvariant()).Should().BeEquivalentTo(
-                ["RESULT", "SUMMARY", "METRICS", "MANUAL", "FIRE_INSTANCE_ID", "JOB_INPUT", "JOB_INPUT_TOO_LARGE"]);
+                ["RESULT", "SUMMARY", "METRICS", "MANUAL", "FIRE_INSTANCE_ID", "JOB_INPUT", "JOB_INPUT_TOO_LARGE", "DUE_TIME", "START_DELAY", "ORIGIN", "EXCEPTION_TYPE"],
+                "4.4's outcome columns, and 4.9's due time, start delay, origin and exception type (#4333)");
             history.Indexes.Missing.Select(x => x.Name.ToUpperInvariant()).Should().BeEquivalentTo(
                 ["IDX_QRTZ_EH_JOB_TIME", "IDX_QRTZ_EH_FIRE_INST", "IDX_QRTZ_EH_TRIG_TIME"], "4.4's job index and 4.6's two lookup indexes");
             history.Columns.Extras.Should().BeEmpty();

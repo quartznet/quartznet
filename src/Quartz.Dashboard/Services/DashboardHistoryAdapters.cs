@@ -61,7 +61,11 @@ internal static class DashboardHistoryMapping
             Manual = entry.Manual,
             FireInstanceId = entry.FireInstanceId,
             Input = entry.Input,
-            InputTooLarge = entry.InputTooLarge
+            InputTooLarge = entry.InputTooLarge,
+            DueTimeUtc = entry.DueTimeUtc,
+            StartDelay = entry.StartDelay,
+            Origin = entry.Origin,
+            ExceptionType = entry.ExceptionType
         };
     }
 
@@ -89,7 +93,11 @@ internal static class DashboardHistoryMapping
             Manual = entry.Manual,
             FireInstanceId = entry.FireInstanceId,
             Input = entry.Input,
-            InputTooLarge = entry.InputTooLarge
+            InputTooLarge = entry.InputTooLarge,
+            DueTimeUtc = entry.DueTimeUtc,
+            StartDelay = entry.StartDelay,
+            Origin = entry.Origin,
+            ExceptionType = entry.ExceptionType
         };
     }
 
@@ -142,6 +150,8 @@ internal static class DashboardHistoryMapping
             FiredFrom = query.FiredFrom,
             FiredBefore = query.FiredBefore,
             Results = query.Results,
+            Origin = query.Origin,
+            ExceptionType = query.ExceptionType,
             Skip = query.Skip,
             Take = query.Take,
             IncludeTotalCount = query.IncludeTotalCount
@@ -165,6 +175,8 @@ internal static class DashboardHistoryMapping
             FiredFrom = query.FiredFrom,
             FiredBefore = query.FiredBefore,
             Results = query.Results,
+            Origin = query.Origin,
+            ExceptionType = query.ExceptionType,
             Skip = query.Skip,
             Take = query.Take,
             IncludeTotalCount = query.IncludeTotalCount

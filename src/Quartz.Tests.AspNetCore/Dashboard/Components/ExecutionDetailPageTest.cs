@@ -87,7 +87,12 @@ public class ExecutionDetailPageTest
             Summary = "no stale reservations",
             MetricsJson = """{"scanned":1200,"released":0,"window":"00:05:00"}""",
             Manual = true,
-            FireInstanceId = "node-a-17"
+            FireInstanceId = "node-a-17",
+            DueTimeUtc = TestData.Dashboard.FiredAt.AddMinutes(-2),
+            StartDelay = TimeSpan.FromSeconds(12),
+            Origin = FiringOrigin.Manual,
+            ExceptionType = "System.InvalidOperationException",
+            ExceptionMessage = "the upstream system is down"
         });
 
         IRenderedComponent<ExecutionDetail> page = Render("entry-1");
@@ -99,9 +104,38 @@ public class ExecutionDetailPageTest
             page.Find("[data-testid=execution-manual]").TextContent.Should().StartWith("Yes");
             page.Find("[data-testid=execution-fire-instance]").TextContent.Should().Be("node-a-17",
                 "the fire instance id is what finds the run's span and log lines elsewhere");
+            page.Find("[data-testid=execution-due]").TextContent.Should().Be("2024-05-06 07:06:09 +00:00",
+                "the run was due two minutes before it fired at 07:08:09 UTC");
+            page.Find("[data-testid=execution-start-delay]").TextContent.Should().Be("12 s",
+                "the run started twelve seconds after it was due");
+            page.Find("[data-testid=execution-origin]").TextContent.Should().StartWith("Manual",
+                "the run was asked for, not fired by its schedule");
+            page.Find("[data-testid=execution-exception]").TextContent.Should().Be(
+                "System.InvalidOperationException: the upstream system is down",
+                "the exception is its type first, then what it said");
             page.FindAll("[data-testid=execution-metrics] tbody tr").Select(row => row.TextContent.Trim()).Should().Equal(
                 ["scanned1200", "released0", "window00:05:00"],
                 "one row per metric, in the order the job reported them");
+        });
+    }
+
+    [Test]
+    public void ARunFromBeforeTheHistoryGrewSaysWhatItDoesNotKnow()
+    {
+        GivenExecution(Entry());
+
+        IRenderedComponent<ExecutionDetail> page = Render("entry-1");
+
+        page.WaitForAssertion(() =>
+        {
+            page.Find("[data-testid=execution-due]").TextContent.Should().Be("—",
+                "a row written before 4.9 carries no due time");
+            page.Find("[data-testid=execution-start-delay]").TextContent.Should().Be("—",
+                "and no delay was measured for it");
+            page.Find("[data-testid=execution-origin]").TextContent.Should().Be("—",
+                "and no origin was recorded for it");
+            page.Find("[data-testid=execution-exception]").TextContent.Should().Be("—",
+                "and nothing failed in it");
         });
     }
 

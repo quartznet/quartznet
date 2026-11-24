@@ -312,6 +312,18 @@ internal static class SqlParameters
     /// <summary>Whether a history row's run had an input over the cap, which is then not kept.</summary>
     public const string HistoryJobInputTooLarge = "historyJobInputTooLarge";
 
+    /// <summary>When a history row's run was due, the occurrence it serves.</summary>
+    public const string HistoryDueTime = "historyDueTime";
+
+    /// <summary>How late a history row's run started, in ticks.</summary>
+    public const string HistoryStartDelay = "historyStartDelay";
+
+    /// <summary>Why a history row's run ran, the integer of its <see cref="FiringOrigin" />.</summary>
+    public const string HistoryOrigin = "historyOrigin";
+
+    /// <summary>The full name of the type of what a history row's job threw.</summary>
+    public const string HistoryExceptionType = "historyExceptionType";
+
     /// <summary>The instant a history page starts at, inclusive.</summary>
     public const string HistoryFiredFrom = "historyFiredFrom";
 

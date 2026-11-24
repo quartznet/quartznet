@@ -52,4 +52,13 @@ internal static class JobFailure
     /// The message of what the job threw.
     /// </summary>
     internal static string MessageOf(JobExecutionException exception) => Thrown(exception).Message;
+
+    /// <summary>
+    /// The full name of the type of what the job threw, so failures can be grouped by cause.
+    /// </summary>
+    internal static string TypeOf(JobExecutionException exception)
+    {
+        Type type = Thrown(exception).GetType();
+        return type.FullName ?? type.Name;
+    }
 }

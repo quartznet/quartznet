@@ -223,6 +223,17 @@ internal sealed class InMemoryExecutionHistoryStore : IExecutionHistoryStore, IT
             filtered = filtered.Where(x => wanted.Contains(x.EffectiveResult));
         }
 
+        if (query.Origin is { } origin)
+        {
+            filtered = filtered.Where(x => x.Origin == origin);
+        }
+
+        if (!string.IsNullOrWhiteSpace(query.ExceptionType))
+        {
+            string exceptionType = query.ExceptionType;
+            filtered = filtered.Where(x => string.Equals(x.ExceptionType, exceptionType, StringComparison.Ordinal));
+        }
+
         return filtered;
     }
 

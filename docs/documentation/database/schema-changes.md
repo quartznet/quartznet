@@ -807,16 +807,19 @@ completion.
 
 ## Version 4.9
 
-One optional script: only a store configured with `UseExecutionHistory()` needs it
-([#4243](https://github.com/quartznet/quartznet/issues/4243)). 4.8 changed no schema.
+Two optional scripts: only a store configured with `UseExecutionHistory()` needs them
+([#4243](https://github.com/quartznet/quartznet/issues/4243),
+[#4333](https://github.com/quartznet/quartznet/issues/4333)). 4.8 changed no schema.
 
 | Script | Status | Adds |
 |---|---|---|
 | [`migrations/4.9/add_trigger_status_<db>.sql`](https://github.com/quartznet/quartznet/tree/main/database/migrations/4.9) | Optional: only with `UseExecutionHistory()` | The `QRTZ_TRIGGER_STATUS` table |
+| [`migrations/4.9/add_execution_due_delay_origin_<db>.sql`](https://github.com/quartznet/quartznet/tree/main/database/migrations/4.9) | Optional: only with `UseExecutionHistory()` | `DUE_TIME`, `START_DELAY`, `ORIGIN` and `EXCEPTION_TYPE` on `QRTZ_EXECUTION_HISTORY` |
 
-- A store configured with `UseExecutionHistory()` refuses to start without it; the startup check names the
-  table and the script. No other store probes for it.
-- It creates a table and alters nothing, so it runs in any order beside 4.9's other scripts.
+- A store configured with `UseExecutionHistory()` refuses to start without them; the startup check names the
+  table and the script. No other store probes for them.
+- The trigger-status script creates a table and alters nothing, and the columns script adds four nullable
+  columns with no default, so either runs in any order beside 4.9's other scripts.
 
 ### The trigger status table
 
@@ -830,11 +833,29 @@ One optional script: only a store configured with `UseExecutionHistory()` needs 
 - No foreign key: a 4.8 node deleting a trigger must not trip on a row it has never heard of. The history's
   sweep deletes the row of a trigger that is gone once its last run is older than the longest retention.
 
+### The execution history's due time, start delay, origin and exception type
+
+`QRTZ_EXECUTION_HISTORY` gains four nullable columns, all with no default, so a row a 4.8 node wrote leaves
+them `NULL`:
+
+- `DUE_TIME` — when the run was due: the occurrence it serves, so a backfill is due when its slot was, and
+  a retry when its occurrence was.
+- `START_DELAY` — how late the run's job started, in ticks: from when the attempt was due until the job was
+  called, the same number `quartz.job.execution.start_delay` records.
+- `ORIGIN` — why it ran, the integer of `FiringOrigin`: 0 schedule, 1 manual, 2 backfill.
+- `EXCEPTION_TYPE` — the full name of the type of what the job threw, cut to 200 characters.
+
+The History page shows a dash for a due time and a delay it does not have, no badge for an origin it does
+not have, and the message alone for a failure whose type it does not have.
+
 ### Rolling 4.8 → 4.9
 
 Run the script at any time. A 4.8 node never touches the table, so the trigger rollup counts only the firings
 4.9 nodes record until every node is 4.9: a trigger's last run can be older than its previous fire time, and a
 4.8 node's success does not clear its failing count.
+
+A 4.8 node writes history rows that name their own columns and leave the four `NULL`, and never reads them;
+a 4.9 node's History page reads them as dashes until every node is 4.9.
 
 A fresh install from `database/tables/`, and `ProvisionSchema()`, create it.
 

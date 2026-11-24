@@ -53,6 +53,13 @@
                        @bind="_triggerFilter" />
             </div>
             <div class="qz-form-group">
+                <label class="qz-form-label" for="history-exception-type-filter">Exception type</label>
+                <input id="history-exception-type-filter"
+                       class="qz-input qz-input-mono"
+                       placeholder="System.TimeoutException"
+                       @bind="_exceptionTypeFilter" />
+            </div>
+            <div class="qz-form-group">
                 <label class="qz-form-label" for="history-node-filter">Node</label>
                 @* Applies on its own rather than waiting for the button beside the text filters: a
                    dropdown that does nothing when it is changed reads as a broken control. *@
@@ -76,6 +83,20 @@
                         @onchange="OnOutcomeFilterChangedAsync">
                     <option value="">All outcomes</option>
                     <option value="@FailedFinallyFilter">Failed after retries</option>
+                </select>
+            </div>
+            <div class="qz-form-group">
+                <label class="qz-form-label" for="history-origin-filter">Origin</label>
+                @* Applies on its own, as the node dropdown does. *@
+                <select id="history-origin-filter"
+                        class="qz-select"
+                        data-testid="history-origin-filter"
+                        value="@_appliedOriginFilter"
+                        @onchange="OnOriginFilterChangedAsync">
+                    <option value="">All origins</option>
+                    <option value="schedule">Scheduled</option>
+                    <option value="manual">Manual</option>
+                    <option value="backfill">Backfill</option>
                 </select>
             </div>
             <div class="qz-form-group">
@@ -118,7 +139,7 @@
         </div>
         <div class="qz-actions qz-group-actions">
             <button type="button" class="qz-button qz-button-primary" @onclick="ApplyFiltersAsync">Apply filters</button>
-            <button type="button" class="qz-button" @onclick="ClearFiltersAsync" disabled="@(!HasFilters && string.IsNullOrWhiteSpace(_jobFilter) && string.IsNullOrWhiteSpace(_triggerFilter))">Clear</button>
+            <button type="button" class="qz-button" @onclick="ClearFiltersAsync" disabled="@(!HasFilters && string.IsNullOrWhiteSpace(_jobFilter) && string.IsNullOrWhiteSpace(_triggerFilter) && string.IsNullOrWhiteSpace(_exceptionTypeFilter))">Clear</button>
         </div>
     </div>
 
@@ -199,6 +220,7 @@
                     <th class="qz-col-node">Node</th>
                     <th class="qz-col-fired">Fired</th>
                     <th class="qz-col-duration">Duration</th>
+                    <th class="qz-col-late">Late</th>
                     <th class="qz-col-result">Result</th>
                     <th class="qz-col-summary">Summary</th>
                     <th class="qz-col-error">Error</th>
@@ -229,9 +251,17 @@
                             }
                         </td>
                         <td class="qz-col-duration">@FormatDurationValue(entry.Duration)</td>
+                        <td class="qz-col-late" data-testid="history-late">@FormatLateValue(entry)</td>
                         <td class="qz-col-result">
                             <StateIndicator State="@RunResultDisplay.Label(entry)" />
-                            @if (entry.Manual)
+                            @* The origin as a badge beside the result: Manual, as before, and Backfill.
+                               Scheduled gets no badge. A row written before 4.9 carries no origin, and
+                               falls back to the Manual flag it was written with. *@
+                            @if (entry.Origin == FiringOrigin.Backfill)
+                            {
+                                <span class="qz-run-badge" data-testid="history-backfill" title="A backfill of a slot the schedule had, not a firing of its schedule">Backfill</span>
+                            }
+                            else if (entry.Origin == FiringOrigin.Manual || (entry.Origin is null && entry.Manual))
                             {
                                 <span class="qz-run-badge" data-testid="history-manual" title="Asked for with Trigger now or TriggerJob, not fired by a schedule">Manual</span>
                             }
@@ -247,10 +277,12 @@
                             }
                         </td>
                         <td class="qz-col-error" data-testid="history-error">
-                            @* Cut to two lines; the title, and the row's own page, carry the whole message. *@
+                            @* The exception type, cut to two lines; the title, and the row's own page,
+                               carry the whole message. A row written before 4.9 carries no type, and the
+                               cell shows the message as before. *@
                             @if (entry.ExceptionMessage is { Length: > 0 } error)
                             {
-                                <span class="qz-history-clamp" title="@error">@error</span>
+                                <span class="qz-history-clamp" title="@ErrorTitle(entry)">@ErrorText(entry)</span>
                             }
                         </td>
                         @if (CanRunAgain)
@@ -353,10 +385,13 @@
     private TimeSpan _pageP95Duration;
     private string _jobFilter = string.Empty;
     private string _triggerFilter = string.Empty;
+    private string _exceptionTypeFilter = string.Empty;
     private string _appliedJobFilter = string.Empty;
     private string _appliedTriggerFilter = string.Empty;
+    private string _appliedExceptionTypeFilter = string.Empty;
     private string _appliedNodeFilter = string.Empty;
     private string _appliedOutcomeFilter = string.Empty;
+    private string _appliedOriginFilter = string.Empty;
     private readonly List<DashboardMisfireEntry> _misfires = [];
     private bool _misfiresUnavailable;
 
@@ -427,8 +462,9 @@
     /// </summary>
     /// <remarks>
     /// A scheduler in another process whose host is older than 4.4 ignores the job, fire-time and result
-    /// filters, and one older than 4.6 the trigger filter; the HTTP client refuses rather than show an
-    /// unfiltered page as a filtered one. That is not "no history here": the page says which it is.
+    /// filters, one older than 4.6 the trigger filter, and one older than 4.9 the origin and exception-type
+    /// filters; the HTTP client refuses rather than show an unfiltered page as a filtered one. That is not
+    /// "no history here": the page says which it is.
     /// </remarks>
     private string? _filterUnsupported;
 
@@ -485,6 +521,20 @@
     [SupplyParameterFromQuery(Name = "outcome")]
     public string? OutcomeFilterQuery { get; set; }
 
+    /// <summary>
+    /// The origin to list: <c>origin=schedule</c>, <c>manual</c> or <c>backfill</c>.
+    /// </summary>
+    [Parameter]
+    [SupplyParameterFromQuery(Name = "origin")]
+    public string? OriginFilterQuery { get; set; }
+
+    /// <summary>
+    /// The exception type to list, matched exactly by its full name.
+    /// </summary>
+    [Parameter]
+    [SupplyParameterFromQuery(Name = "exceptionType")]
+    public string? ExceptionTypeFilterQuery { get; set; }
+
     [Parameter]
     [SupplyParameterFromQuery(Name = "page")]
     public int? PageQuery { get; set; }
@@ -522,15 +572,17 @@
     private bool HasFilters =>
         !string.IsNullOrWhiteSpace(_appliedJobFilter) ||
         !string.IsNullOrWhiteSpace(_appliedTriggerFilter) ||
+        !string.IsNullOrWhiteSpace(_appliedExceptionTypeFilter) ||
         HasNodeFilter ||
         HasOutcomeFilter ||
+        HasOriginFilter ||
         HasVersionedFilter;
 
     /// <summary>
     /// Whether a filter only a newer host answers is applied: 4.4 for a job, a result or a window, 4.6 for
-    /// a trigger.
+    /// a trigger, 4.9 for an origin or an exception type.
     /// </summary>
-    private bool HasVersionedFilter => _appliedExactJob is not null || _appliedExactTrigger is not null || _appliedResults.Count > 0 || HasWindow;
+    private bool HasVersionedFilter => _appliedExactJob is not null || _appliedExactTrigger is not null || _appliedResults.Count > 0 || HasWindow || HasOriginFilter || HasExceptionTypeFilter;
 
     private bool HasWindow => !ReferenceEquals(_appliedWindow, RunStatisticsWindow.All);
 
@@ -546,6 +598,10 @@
     private bool HasNodeFilter => !string.IsNullOrWhiteSpace(_appliedNodeFilter);
 
     private bool HasOutcomeFilter => string.Equals(_appliedOutcomeFilter, FailedFinallyFilter, StringComparison.OrdinalIgnoreCase);
+
+    private bool HasOriginFilter => !string.IsNullOrWhiteSpace(_appliedOriginFilter);
+
+    private bool HasExceptionTypeFilter => !string.IsNullOrWhiteSpace(_appliedExceptionTypeFilter);
 
     /// <summary>
     /// Whether the page has a <em>Run again</em> column: triggering a job now, which an operation policy
@@ -580,16 +636,21 @@
     {
         string requestedJobFilter = (JobFilterQuery ?? string.Empty).Trim();
         string requestedTriggerFilter = (TriggerFilterQuery ?? string.Empty).Trim();
+        string requestedExceptionTypeFilter = (ExceptionTypeFilterQuery ?? string.Empty).Trim();
         string requestedNodeFilter = (NodeFilterQuery ?? string.Empty).Trim();
         string requestedOutcomeFilter = NormalizeOutcome(OutcomeFilterQuery);
+        string requestedOriginFilter = NormalizeOrigin(OriginFilterQuery);
         int requestedPage = Math.Max(1, PageQuery ?? 1);
 
         _jobFilter = requestedJobFilter;
         _triggerFilter = requestedTriggerFilter;
+        _exceptionTypeFilter = requestedExceptionTypeFilter;
         _appliedJobFilter = requestedJobFilter;
         _appliedTriggerFilter = requestedTriggerFilter;
+        _appliedExceptionTypeFilter = requestedExceptionTypeFilter;
         _appliedNodeFilter = requestedNodeFilter;
         _appliedOutcomeFilter = requestedOutcomeFilter;
+        _appliedOriginFilter = requestedOriginFilter;
         _appliedExactJob = NormalizeExactJob(JobGroupQuery, JobNameQuery);
         _appliedExactTrigger = NormalizeExactTrigger(TriggerGroupQuery, TriggerNameQuery);
         SetResults(NormalizeResults(ResultQuery));
@@ -750,6 +811,16 @@
     /// </remarks>
     private async Task LoadStatisticsAsync(string schedulerName, DateTimeOffset now, CancellationToken cancellationToken)
     {
+        // The run statistics count the listing's filters, and they know no origin or exception type:
+        // with either applied the cards fall back to the rows on the page, as they do for a source that
+        // cannot count at all. The key is cleared, so clearing the filter reads them again at once.
+        if (HasOriginFilter || HasExceptionTypeFilter)
+        {
+            _statistics = null;
+            _statisticsKey = null;
+            return;
+        }
+
         string key = string.Join(
             "\u001f",
             schedulerName,
@@ -839,6 +910,8 @@
         Job = _appliedExactJob,
         Trigger = _appliedExactTrigger,
         Results = _appliedResults.Count == 0 ? null : [.. _appliedResults],
+        Origin = OriginFilterValue(),
+        ExceptionType = string.IsNullOrWhiteSpace(_appliedExceptionTypeFilter) ? null : _appliedExceptionTypeFilter,
         FiredFrom = _windowFrom,
         Skip = Math.Max(0, page - 1) * _pageSize,
         Take = _pageSize,
@@ -859,31 +932,47 @@
         Take = _pageSize
     };
 
+    /// <summary>
+    /// The origin the listing is narrowed to, or <see langword="null" /> for every origin.
+    /// </summary>
+    private FiringOrigin? OriginFilterValue() => _appliedOriginFilter switch
+    {
+        "schedule" => FiringOrigin.Schedule,
+        "manual" => FiringOrigin.Manual,
+        "backfill" => FiringOrigin.Backfill,
+        _ => null
+    };
+
     private string? NormalizedNodeFilter() => string.IsNullOrWhiteSpace(_appliedNodeFilter) ? null : _appliedNodeFilter;
 
     private async Task OnPageChangedAsync(int page)
     {
-        await UpdateQueryStateAsync(page, _appliedJobFilter, _appliedTriggerFilter, _appliedNodeFilter, _appliedOutcomeFilter);
+        await UpdateQueryStateAsync(page, _appliedJobFilter, _appliedTriggerFilter, _appliedNodeFilter, _appliedOutcomeFilter, _appliedOriginFilter, _appliedExceptionTypeFilter);
     }
 
     private Task ApplyFiltersAsync()
     {
-        return UpdateQueryStateAsync(1, _jobFilter, _triggerFilter, _appliedNodeFilter, _appliedOutcomeFilter);
+        return UpdateQueryStateAsync(1, _jobFilter, _triggerFilter, _appliedNodeFilter, _appliedOutcomeFilter, _appliedOriginFilter, _exceptionTypeFilter);
     }
 
     private Task OnNodeFilterChangedAsync(ChangeEventArgs args)
     {
-        return UpdateQueryStateAsync(1, _appliedJobFilter, _appliedTriggerFilter, args.Value?.ToString() ?? string.Empty, _appliedOutcomeFilter);
+        return UpdateQueryStateAsync(1, _appliedJobFilter, _appliedTriggerFilter, args.Value?.ToString() ?? string.Empty, _appliedOutcomeFilter, _appliedOriginFilter, _appliedExceptionTypeFilter);
     }
 
     private Task OnWindowChangedAsync(ChangeEventArgs args)
     {
-        return UpdateQueryStateAsync(1, _appliedJobFilter, _appliedTriggerFilter, _appliedNodeFilter, _appliedOutcomeFilter, _appliedExactJob, _appliedExactTrigger, _appliedResults, RunStatisticsWindow.Parse(args.Value?.ToString()));
+        return UpdateQueryStateAsync(1, _appliedJobFilter, _appliedTriggerFilter, _appliedNodeFilter, _appliedOutcomeFilter, _appliedOriginFilter, _appliedExceptionTypeFilter, _appliedExactJob, _appliedExactTrigger, _appliedResults, RunStatisticsWindow.Parse(args.Value?.ToString()));
     }
 
     private Task OnOutcomeFilterChangedAsync(ChangeEventArgs args)
     {
-        return UpdateQueryStateAsync(1, _appliedJobFilter, _appliedTriggerFilter, _appliedNodeFilter, args.Value?.ToString() ?? string.Empty);
+        return UpdateQueryStateAsync(1, _appliedJobFilter, _appliedTriggerFilter, _appliedNodeFilter, args.Value?.ToString() ?? string.Empty, _appliedOriginFilter, _appliedExceptionTypeFilter);
+    }
+
+    private Task OnOriginFilterChangedAsync(ChangeEventArgs args)
+    {
+        return UpdateQueryStateAsync(1, _appliedJobFilter, _appliedTriggerFilter, _appliedNodeFilter, _appliedOutcomeFilter, args.Value?.ToString() ?? string.Empty, _appliedExceptionTypeFilter);
     }
 
     private Task OnResultFilterChangedAsync(JobRunResult result, ChangeEventArgs args)
@@ -895,29 +984,30 @@
             results.Add(result);
         }
 
-        return UpdateQueryStateAsync(1, _appliedJobFilter, _appliedTriggerFilter, _appliedNodeFilter, _appliedOutcomeFilter, _appliedExactJob, _appliedExactTrigger, results, _appliedWindow);
+        return UpdateQueryStateAsync(1, _appliedJobFilter, _appliedTriggerFilter, _appliedNodeFilter, _appliedOutcomeFilter, _appliedOriginFilter, _appliedExceptionTypeFilter, _appliedExactJob, _appliedExactTrigger, results, _appliedWindow);
     }
 
     private Task ClearExactJobAsync()
     {
-        return UpdateQueryStateAsync(1, _appliedJobFilter, _appliedTriggerFilter, _appliedNodeFilter, _appliedOutcomeFilter, exactJob: null, _appliedExactTrigger, _appliedResults, _appliedWindow);
+        return UpdateQueryStateAsync(1, _appliedJobFilter, _appliedTriggerFilter, _appliedNodeFilter, _appliedOutcomeFilter, _appliedOriginFilter, _appliedExceptionTypeFilter, exactJob: null, _appliedExactTrigger, _appliedResults, _appliedWindow);
     }
 
     private Task ClearExactTriggerAsync()
     {
-        return UpdateQueryStateAsync(1, _appliedJobFilter, _appliedTriggerFilter, _appliedNodeFilter, _appliedOutcomeFilter, _appliedExactJob, exactTrigger: null, _appliedResults, _appliedWindow);
+        return UpdateQueryStateAsync(1, _appliedJobFilter, _appliedTriggerFilter, _appliedNodeFilter, _appliedOutcomeFilter, _appliedOriginFilter, _appliedExceptionTypeFilter, _appliedExactJob, exactTrigger: null, _appliedResults, _appliedWindow);
     }
 
     private Task ClearFiltersAsync()
     {
         _jobFilter = string.Empty;
         _triggerFilter = string.Empty;
-        return UpdateQueryStateAsync(1, string.Empty, string.Empty, string.Empty, string.Empty, exactJob: null, exactTrigger: null, results: [], RunStatisticsWindow.All);
+        _exceptionTypeFilter = string.Empty;
+        return UpdateQueryStateAsync(1, string.Empty, string.Empty, string.Empty, string.Empty, string.Empty, string.Empty, exactJob: null, exactTrigger: null, results: [], RunStatisticsWindow.All);
     }
 
-    private Task UpdateQueryStateAsync(int page, string jobFilter, string triggerFilter, string nodeFilter, string outcomeFilter)
+    private Task UpdateQueryStateAsync(int page, string jobFilter, string triggerFilter, string nodeFilter, string outcomeFilter, string originFilter, string exceptionTypeFilter)
     {
-        return UpdateQueryStateAsync(page, jobFilter, triggerFilter, nodeFilter, outcomeFilter, _appliedExactJob, _appliedExactTrigger, _appliedResults, _appliedWindow);
+        return UpdateQueryStateAsync(page, jobFilter, triggerFilter, nodeFilter, outcomeFilter, originFilter, exceptionTypeFilter, _appliedExactJob, _appliedExactTrigger, _appliedResults, _appliedWindow);
     }
 
     private Task UpdateQueryStateAsync(
@@ -926,6 +1016,8 @@
         string triggerFilter,
         string nodeFilter,
         string outcomeFilter,
+        string originFilter,
+        string exceptionTypeFilter,
         JobKeyDto? exactJob,
         TriggerKeyDto? exactTrigger,
         IReadOnlyCollection<JobRunResult> results,
@@ -936,6 +1028,8 @@
         string normalizedTriggerFilter = triggerFilter.Trim();
         string normalizedNodeFilter = nodeFilter.Trim();
         string normalizedOutcomeFilter = NormalizeOutcome(outcomeFilter);
+        string normalizedOriginFilter = NormalizeOrigin(originFilter);
+        string normalizedExceptionTypeFilter = exceptionTypeFilter.Trim();
         List<JobRunResult> normalizedResults = RunResultDisplay.Offered.Where(results.Contains).ToList();
 
         string updatedPath = BuildHistoryRelativeUri(
@@ -944,6 +1038,8 @@
             normalizedTriggerFilter,
             normalizedNodeFilter,
             normalizedOutcomeFilter,
+            normalizedOriginFilter,
+            normalizedExceptionTypeFilter,
             exactJob,
             exactTrigger,
             normalizedResults,
@@ -960,6 +1056,8 @@
             _appliedTriggerFilter = normalizedTriggerFilter;
             _appliedNodeFilter = normalizedNodeFilter;
             _appliedOutcomeFilter = normalizedOutcomeFilter;
+            _appliedOriginFilter = normalizedOriginFilter;
+            _appliedExceptionTypeFilter = normalizedExceptionTypeFilter;
             _appliedExactJob = exactJob;
             _appliedExactTrigger = exactTrigger;
             SetResults(normalizedResults);
@@ -999,6 +1097,19 @@
         return string.Equals(value?.Trim(), FailedFinallyFilter, StringComparison.OrdinalIgnoreCase)
             ? FailedFinallyFilter
             : string.Empty;
+    }
+
+    /// <summary>
+    /// The <c>origin</c> parameter as the page holds it: the one value it knows, or nothing.
+    /// </summary>
+    /// <remarks>
+    /// A value nobody recognises reads as no filter rather than as an empty page, which is what a
+    /// hand-edited URL or a link from a future version would otherwise produce.
+    /// </remarks>
+    private static string NormalizeOrigin(string? value)
+    {
+        string normalized = (value ?? string.Empty).Trim().ToLowerInvariant();
+        return normalized is "schedule" or "manual" or "backfill" ? normalized : string.Empty;
     }
 
     /// <summary>
@@ -1055,6 +1166,8 @@
         string triggerFilter,
         string nodeFilter,
         string outcomeFilter,
+        string originFilter,
+        string exceptionTypeFilter,
         JobKeyDto? exactJob,
         TriggerKeyDto? exactTrigger,
         IReadOnlyCollection<JobRunResult> results,
@@ -1084,6 +1197,16 @@
         if (!string.IsNullOrWhiteSpace(outcomeFilter))
         {
             queryParts.Add("outcome=" + Uri.EscapeDataString(outcomeFilter));
+        }
+
+        if (!string.IsNullOrWhiteSpace(originFilter))
+        {
+            queryParts.Add("origin=" + Uri.EscapeDataString(originFilter));
+        }
+
+        if (!string.IsNullOrWhiteSpace(exceptionTypeFilter))
+        {
+            queryParts.Add("exceptionType=" + Uri.EscapeDataString(exceptionTypeFilter));
         }
 
         if (exactJob is not null)
@@ -1137,12 +1260,25 @@
         string jobPart = KeyFilterSummary("job", _appliedJobFilter, _appliedExactJob?.Group, _appliedExactJob?.Name);
         string triggerPart = KeyFilterSummary("trigger", _appliedTriggerFilter, _appliedExactTrigger?.Group, _appliedExactTrigger?.Name);
         string outcomePart = HasOutcomeFilter ? "Failed after retries" : "Any outcome";
+        string originPart = HasOriginFilter ? "Origin: " + OriginLabel(_appliedOriginFilter) : "Any origin";
+        string exceptionPart = HasExceptionTypeFilter ? "Exception type: " + _appliedExceptionTypeFilter : "Any exception type";
         string resultPart = _appliedResults.Count == 0
             ? "Any result"
             : "Results: " + string.Join(", ", _appliedResults.Select(RunResultDisplay.Label));
-        return jobPart + " · " + triggerPart + " · Node: " + NodeScopeLabel() + " · " + outcomePart + " · " + resultPart
+        return jobPart + " · " + triggerPart + " · Node: " + NodeScopeLabel() + " · " + outcomePart + " · " + originPart + " · " + exceptionPart + " · " + resultPart
                + " · Window: " + _appliedWindow.Scope;
     }
+
+    /// <summary>
+    /// An origin filter's word in the summary: <c>Scheduled</c>, <c>Manual</c> or <c>Backfill</c>.
+    /// </summary>
+    private static string OriginLabel(string origin) => origin switch
+    {
+        "schedule" => "Scheduled",
+        "manual" => "Manual",
+        "backfill" => "Backfill",
+        _ => origin
+    };
 
     /// <summary>
     /// Whether the row is an occurrence's last word: it failed, and the trigger did not answer with
@@ -1310,6 +1446,51 @@
     /// anything longer with its unit spelled out.
     /// </summary>
     private static string FormatDurationValue(TimeSpan duration) => DisplayValueHelper.FormatDuration(duration);
+
+    /// <summary>
+    /// How late the run started: blank when under a second, a dash when the row does not say.
+    /// </summary>
+    private static string FormatLateValue(DashboardHistoryEntry entry)
+    {
+        if (entry.StartDelay is not { } delay)
+        {
+            return "—";
+        }
+
+        return delay < TimeSpan.FromSeconds(1) ? string.Empty : DisplayValueHelper.FormatDuration(delay);
+    }
+
+    /// <summary>
+    /// The exception type the Error cell shows: its short name, or the message when the row carries no type.
+    /// </summary>
+    private static string ErrorText(DashboardHistoryEntry entry)
+    {
+        return ShortExceptionType(entry.ExceptionType) ?? entry.ExceptionMessage ?? string.Empty;
+    }
+
+    /// <summary>
+    /// The whole of what the Error cell shows: the full type and the message, or the message alone.
+    /// </summary>
+    private static string ErrorTitle(DashboardHistoryEntry entry)
+    {
+        return entry.ExceptionType is { Length: > 0 } type
+            ? type + ": " + entry.ExceptionMessage
+            : entry.ExceptionMessage ?? string.Empty;
+    }
+
+    /// <summary>
+    /// An exception type's short name — the part after its last dot — or <see langword="null" /> when it has none.
+    /// </summary>
+    private static string? ShortExceptionType(string? exceptionType)
+    {
+        if (string.IsNullOrEmpty(exceptionType))
+        {
+            return null;
+        }
+
+        int dot = exceptionType.LastIndexOf('.');
+        return dot < 0 ? exceptionType : exceptionType[(dot + 1)..];
+    }
 
     private string ExecutionPath(string entryId)
     {

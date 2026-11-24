@@ -110,4 +110,16 @@ public sealed record ExecutionHistoryQuery : PagedQuery
     /// <see cref="JobRunResult.Succeeded" /> or <see cref="JobRunResult.Failed" />.
     /// </remarks>
     public IReadOnlyCollection<JobRunResult>? Results { get; init; }
+
+    /// <summary>
+    /// Lists only the executions that ran for this reason, or every origin when null. A row written
+    /// before 4.9 carries no origin, and no origin lists it.
+    /// </summary>
+    public FiringOrigin? Origin { get; init; }
+
+    /// <summary>
+    /// Lists only the executions that failed with this exception type, matched exactly by its full name,
+    /// or every failure when null. A row written before 4.9 carries no type, and no type lists it.
+    /// </summary>
+    public string? ExceptionType { get; init; }
 }

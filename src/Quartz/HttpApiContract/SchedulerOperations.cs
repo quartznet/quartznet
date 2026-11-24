@@ -198,7 +198,9 @@ internal static class SchedulerOperations
             FireInstanceId = filters.FireInstance(),
             FiredFrom = filters.FiredFrom,
             FiredBefore = filters.FiredBefore,
-            Results = filters.ResultSet()
+            Results = filters.ResultSet(),
+            Origin = filters.OriginValue(),
+            ExceptionType = filters.ExceptionTypeValue()
         });
 
         PagedResult<ExecutionHistoryEntry> page = await history.QueryExecutions(query, cancellationToken).ConfigureAwait(false);

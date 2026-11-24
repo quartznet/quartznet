@@ -11,6 +11,10 @@ repaired: AppAny's schema has it wrong, and the move changes it
   CreateTable quartz.QRTZ_TRIGGER_STATUS
 
 converged: harmless, changed in place with no table rebuilt and no column narrowed
+  AddColumn quartz.QRTZ_EXECUTION_HISTORY.DUE_TIME bigint NULL
+  AddColumn quartz.QRTZ_EXECUTION_HISTORY.EXCEPTION_TYPE nvarchar(200) NULL
+  AddColumn quartz.QRTZ_EXECUTION_HISTORY.ORIGIN int NULL
+  AddColumn quartz.QRTZ_EXECUTION_HISTORY.START_DELAY bigint NULL
   AddForeignKey FK_QRTZ_TRIGGERS_QRTZ_JOB_DETAILS_SCHED_NAME_JOB_NAME_JOB_GROUP on quartz.QRTZ_TRIGGERS (SCHED_NAME, JOB_NAME, JOB_GROUP) -> quartz.QRTZ_JOB_DETAILS (SCHED_NAME, JOB_NAME, JOB_GROUP) on delete NoAction
   AlterColumn quartz.QRTZ_FIRED_TRIGGERS.IS_NONCONCURRENT bit NOT NULL -> bit NULL
   DropForeignKey FK_QRTZ_BLOB_TRIGGERS_QRTZ_TRIGGERS_SCHED_NAME_TRIGGER_NAME_TRIGGER_GROUP on quartz.QRTZ_BLOB_TRIGGERS

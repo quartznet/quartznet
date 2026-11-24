@@ -401,6 +401,108 @@ public sealed class ExecutionHistoryPluginTest
         RecordingJob.Origins["on-schedule"].Should().Be(FiringOrigin.Schedule);
     }
 
+    /// <summary>
+    /// A scheduled run records when it was due, how late it started and why it ran: the occurrence it
+    /// filled, the delay the run shell measured from it, and the schedule as its origin.
+    /// </summary>
+    [Test]
+    public async Task AScheduledRunRecordsItsDueTimeItsDelayAndItsOrigin()
+    {
+        await using ServiceProvider container = BuildContainer();
+        IScheduler scheduler = await Start(container);
+
+        DateTimeOffset scheduledAt = DateTimeOffset.UtcNow;
+        IJobDetail job = JobBuilder.Create<RecordingJob>().WithIdentity("on-time", "plugin").Build();
+        await scheduler.ScheduleJob(job, TriggerBuilder.Create().ForJob(job).StartAt(scheduledAt).Build());
+
+        ExecutionHistoryEntry row = (await Rows(container, scheduler.SchedulerName, 1)).Single();
+        await scheduler.Shutdown(waitForJobsToComplete: true);
+
+        row.DueTimeUtc.Should().BeCloseTo(scheduledAt, TimeSpan.FromSeconds(1),
+            "the run was due when its trigger said, not when the thread got to it");
+        row.StartDelay.Should().NotBeNull("the shell measures the delay of every first firing");
+        row.StartDelay!.Value.Should().BeGreaterThanOrEqualTo(TimeSpan.Zero)
+            .And.BeLessThan(TimeSpan.FromSeconds(30), "a run that started half a minute late is not on time");
+        row.Origin.Should().Be(FiringOrigin.Schedule, "a trigger the application scheduled fires on its schedule");
+        row.Manual.Should().BeFalse();
+    }
+
+    /// <summary>
+    /// A run asked for with <c>TriggerJob</c> records its origin as manual, and its due time is when it
+    /// was asked for.
+    /// </summary>
+    [Test]
+    public async Task AManualRunRecordsItsOriginAndItsDueTime()
+    {
+        await using ServiceProvider container = BuildContainer();
+        IScheduler scheduler = await Start(container);
+
+        DateTimeOffset askedAt = DateTimeOffset.UtcNow;
+        await RunNow<RecordingJob>(scheduler, "asked-for");
+
+        ExecutionHistoryEntry row = (await Rows(container, scheduler.SchedulerName, 1)).Single();
+        await scheduler.Shutdown(waitForJobsToComplete: true);
+
+        row.Origin.Should().Be(FiringOrigin.Manual, "TriggerJob marks the trigger, and the recorder reads the mark");
+        row.DueTimeUtc.Should().BeCloseTo(askedAt, TimeSpan.FromSeconds(5),
+            "a manual run is due when it was asked for, not at some earlier scheduled time");
+        row.StartDelay.Should().NotBeNull("the shell measures the delay of every first firing");
+        row.StartDelay!.Value.Should().BeGreaterThanOrEqualTo(TimeSpan.Zero);
+    }
+
+    /// <summary>
+    /// A job that throws records the type of what it threw, so failures can be grouped by cause.
+    /// </summary>
+    [Test]
+    public async Task AJobThatThrowsRecordsTheTypeItThrew()
+    {
+        await using ServiceProvider container = BuildContainer();
+        IScheduler scheduler = await Start(container);
+
+        await RunNow<ThrowingJob>(scheduler, "throws");
+
+        ExecutionHistoryEntry row = (await Rows(container, scheduler.SchedulerName, 1)).Single();
+        await scheduler.Shutdown(waitForJobsToComplete: true);
+
+        row.ExceptionType.Should().Be(typeof(InvalidOperationException).FullName,
+            "the run shell wraps what the job threw twice, and the wrapper's type names nothing");
+    }
+
+    /// <summary>
+    /// A <see cref="JobExecutionException" /> the job threw itself is recorded under its own type, not its
+    /// cause's: the job chose it to say what failed.
+    /// </summary>
+    [Test]
+    public async Task AJobExecutionExceptionTheJobThrewIsRecordedUnderItsOwnType()
+    {
+        await using ServiceProvider container = BuildContainer();
+        IScheduler scheduler = await Start(container);
+
+        await RunNow<RefusingJob>(scheduler, "refuses");
+
+        ExecutionHistoryEntry row = (await Rows(container, scheduler.SchedulerName, 1)).Single();
+        await scheduler.Shutdown(waitForJobsToComplete: true);
+
+        row.ExceptionType.Should().Be(typeof(JobExecutionException).FullName,
+            "the job chose JobExecutionException to say it, and its cause is a detail of that, not the failure");
+    }
+
+    /// <summary>
+    /// A context records its occurrence as its due time and its origin, and no delay when nothing measured one.
+    /// </summary>
+    [Test]
+    public async Task AContextRecordsItsOccurrenceAsItsDueTimeAndOrigin()
+    {
+        JobExecutionContextImpl context = Context(scheduledAt: now.AddSeconds(-5));
+        context.Settle(ExecutionOutcome.Succeeded, retryScheduled: false);
+
+        ExecutionHistoryEntry row = await Record(context);
+
+        row.DueTimeUtc.Should().Be(now.AddSeconds(-5), "the run was due when its trigger said");
+        row.Origin.Should().Be(FiringOrigin.Schedule);
+        row.StartDelay.Should().BeNull("nothing measured a delay for a context built by hand");
+    }
+
     [Test]
     public void AManualMarkIsReadAsATrueFlag()
     {

@@ -287,6 +287,15 @@ internal sealed class JobRunShell
                     // that held the firing back is in it.
                     Instrumentation instrumentation = qs.resources.Meters.StartJobExecute(context, firedTriggerBundle.DueTimeUtc, timeProvider);
 
+                    // The start delay the history records, measured here so it is the number the histogram
+                    // records, from the same due time and on the same clock. The first run only, as the
+                    // histogram is: a refire runs the same firing again at once, and measured from the same
+                    // due time it would report the run before it as lateness.
+                    if (context.RefireCount == 0)
+                    {
+                        context.RecordStartDelay(Meters.MeasureStartDelay(firedTriggerBundle.DueTimeUtc, context, timeProvider));
+                    }
+
                     // Execute the job, through this scheduler's middleware when it has any. Inside the
                     // activity and the instrumentation above, so what a middleware costs is part of what the
                     // firing cost, and outside the classification below, so an exception a middleware throws

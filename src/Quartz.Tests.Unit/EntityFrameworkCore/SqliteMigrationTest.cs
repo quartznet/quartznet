@@ -145,6 +145,15 @@ public sealed class SqliteMigrationTest
         (await Columns(connection, "QRTZA_TRIGGER_STATUS")).Should().Equal(await Columns(connection, "QRTZ_TRIGGER_STATUS"),
             "AppAny 0.6.3 has no trigger rollup, and the move creates it as the fresh install does");
 
+        // Not the whole table, as for the trigger status: AppAny's EXECUTION_HISTORY spells its columns
+        // as SQLite does — TEXT where the fresh install says NVARCHAR(150), bit where it says BIT — and
+        // the move leaves those spellings, as the "Leaves" row of the move's table says. What the move
+        // adds is the four columns, so only their names are compared.
+        (await SqliteSchema.RowsAsync(connection,
+                "SELECT name FROM pragma_table_info('QRTZA_EXECUTION_HISTORY') WHERE name IN ('DUE_TIME', 'START_DELAY', 'ORIGIN', 'EXCEPTION_TYPE') ORDER BY name"))
+            .Should().Equal(["DUE_TIME", "EXCEPTION_TYPE", "ORIGIN", "START_DELAY"],
+                "AppAny 0.6.3 has no due time, start delay, origin or exception type, and the move adds them");
+
         await MigratedSchemaWorkload.RunAsync(connection, "sqlite", database.ConnectionString, "QRTZA_");
 
         // A store keeping its history in the database probes the optional tables, and refuses to start without one.
