@@ -444,8 +444,9 @@ internal sealed class AdoExecutionHistoryStore : IExecutionHistoryStore, IBuffer
     /// </para>
     /// <para>
     /// A store a scheduler validated at startup has the table. A store window's database was never validated, so a
-    /// read that fails there asks whether the table resolves, and a database without it, one not migrated to 4.9,
-    /// answers <see cref="NotSupportedException" /> naming the script. Any other failure propagates.
+    /// read that fails saying a table does not exist asks whether this one resolves, and a database without it, one
+    /// not migrated to 4.9, answers <see cref="NotSupportedException" /> naming the script. Any other failure
+    /// propagates: a connection lost mid-read is a failed read, not a database nobody migrated.
     /// </para>
     /// </remarks>
     /// <exception cref="NotSupportedException">The database has no <c>QRTZ_TRIGGER_STATUS</c>.</exception>
@@ -459,7 +460,7 @@ internal sealed class AdoExecutionHistoryStore : IExecutionHistoryStore, IBuffer
                 conn => Delegate.SelectTriggerRunStatuses(conn, query, cancellationToken),
                 cancellationToken).ConfigureAwait(false);
         }
-        catch (DbException failure) when (!cancellationToken.IsCancellationRequested)
+        catch (DbException failure) when (!cancellationToken.IsCancellationRequested && UndefinedTableDetector.IsUndefinedTable(failure))
         {
             if (await Execute(conn => Delegate.HasTriggerRunStatusTable(conn, cancellationToken), cancellationToken).ConfigureAwait(false))
             {

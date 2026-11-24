@@ -287,9 +287,9 @@ public sealed class FirebirdWeaselSchemaTest
     }
 
     /// <summary>
-    /// 4.3 → 4.7 only adds: five columns and an index on the history table, the rollup table, the version
-    /// column on the state table, the interrupt column on the fired-trigger table, and the misfire threshold
-    /// and fixed-delay columns on the triggers table.
+    /// 4.3 → 4.9 only adds: five columns and an index on the history table, the rollup table, the version
+    /// column on the state table, the interrupt column on the fired-trigger table, the misfire threshold and
+    /// fixed-delay columns on the triggers table, and the trigger rollup table.
     /// </summary>
     [Test]
     public async Task A43SchemaIsBroughtToAFreshInstallByAddingOnly()
@@ -307,8 +307,8 @@ public sealed class FirebirdWeaselSchemaTest
             List<ISchemaObjectDelta> changed = [.. planned.Deltas.Where(x => x.Difference != SchemaPatchDifference.None)];
 
             changed.Select(x => (x.SchemaObject.Identifier.Name.ToUpperInvariant(), x.Difference)).Should().BeEquivalentTo(
-                [("QRTZ_EXECUTION_HISTORY", SchemaPatchDifference.Update), ("QRTZ_JOB_STATUS", SchemaPatchDifference.Create), ("QRTZ_SCHEDULER_STATE", SchemaPatchDifference.Update), ("QRTZ_FIRED_TRIGGERS", SchemaPatchDifference.Update), ("QRTZ_TRIGGERS", SchemaPatchDifference.Update)],
-                "4.4 changes nothing a 4.3 schema has but the history table and adds the rollup, and 4.6 adds the version column to the state table, the interrupt column to the fired-trigger table and the misfire threshold to the triggers table, and 4.7 the fixed-delay column to it: " + Describe(planned));
+                [("QRTZ_EXECUTION_HISTORY", SchemaPatchDifference.Update), ("QRTZ_JOB_STATUS", SchemaPatchDifference.Create), ("QRTZ_SCHEDULER_STATE", SchemaPatchDifference.Update), ("QRTZ_FIRED_TRIGGERS", SchemaPatchDifference.Update), ("QRTZ_TRIGGERS", SchemaPatchDifference.Update), ("QRTZ_TRIGGER_STATUS", SchemaPatchDifference.Create)],
+                "4.4 changes nothing a 4.3 schema has but the history table and adds the rollup, and 4.6 adds the version column to the state table, the interrupt column to the fired-trigger table and the misfire threshold to the triggers table, 4.7 the fixed-delay column to it, and 4.9 the trigger rollup: " + Describe(planned));
 
             (await weasel.ApplyAllConfiguredChangesToDatabaseAsync()).Should().Be(SchemaPatchDifference.Update);
             (await weasel.CreateMigrationAsync()).Difference.Should().Be(SchemaPatchDifference.None,
@@ -316,14 +316,14 @@ public sealed class FirebirdWeaselSchemaTest
         }
 
         (SchemaSnapshot after, List<string> afterDetails) = await database.ReadAsync();
-        after.Tables.Except(before.Tables).Should().Equal(["JOB_STATUS"]);
+        after.Tables.Except(before.Tables).Should().Equal(["JOB_STATUS", "TRIGGER_STATUS"]);
         after.Columns.Should().Contain(before.Columns, "an add-only apply alters and drops no column a 4.3 schema has");
         afterDetails.Should().Contain(beforeDetails, "nor a key, an index or a default");
 
         FirebirdWeaselDatabase fresh = await CreateDatabaseAsync();
         await fresh.RunRepositoryScriptAsync("database", "tables", "tables_firebird.sql");
 
-        await ShouldMatchAsync(database, fresh, "what 4.4, 4.6 and 4.7 added is all a 4.3 schema lacks");
+        await ShouldMatchAsync(database, fresh, "what 4.4, 4.6, 4.7 and 4.9 added is all a 4.3 schema lacks");
         await ShouldHoldTheSeedAsync(database);
 
         (await database.CountAsync(
@@ -823,11 +823,11 @@ public sealed class FirebirdWeaselSchemaTest
         (SchemaSnapshot actualSchema, List<string> actualDetails) = await actual.ReadAsync(prefix);
         (SchemaSnapshot expectedSchema, List<string> expectedDetails) = await expected.ReadAsync(prefix);
 
-        // The premise, so that two empty readings cannot pass for one schema: fifteen tables, every
-        // column read with its details, and fifteen primary keys, five foreign keys and fifteen indexes.
-        expectedSchema.Tables.Should().HaveCount(15);
+        // The premise, so that two empty readings cannot pass for one schema: sixteen tables, every
+        // column read with its details, and sixteen primary keys, five foreign keys and fifteen indexes.
+        expectedSchema.Tables.Should().HaveCount(16);
         expectedDetails.Count(x => x.StartsWith("COL ", StringComparison.Ordinal)).Should().Be(expectedSchema.Columns.Count);
-        expectedDetails.Count(x => x.StartsWith("IX ", StringComparison.Ordinal)).Should().Be(35);
+        expectedDetails.Count(x => x.StartsWith("IX ", StringComparison.Ordinal)).Should().Be(36);
         expectedDetails.Should().Contain(
             $"IX {prefix}TRIGGERS|FK_{prefix}TRIGGERS_1|0|0|0|FK_{prefix}TRIGGERS_1|FOREIGN KEY|RESTRICT|RESTRICT|PK_{prefix}JOB_DETAILS|SCHED_NAME,JOB_NAME,JOB_GROUP",
             "a foreign key with no rule reads back as RESTRICT, on the key it references");

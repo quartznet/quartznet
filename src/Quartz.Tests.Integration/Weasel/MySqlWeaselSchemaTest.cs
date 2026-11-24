@@ -162,9 +162,9 @@ public sealed class MySqlWeaselSchemaTest
     }
 
     /// <summary>
-    /// 4.3 → 4.7 only adds: five columns and an index on the history table, the rollup table, the version
-    /// column on the state table, the interrupt column on the fired-trigger table, and the misfire threshold
-    /// and fixed-delay columns on the triggers table.
+    /// 4.3 → 4.9 only adds: five columns and an index on the history table, the rollup table, the version
+    /// column on the state table, the interrupt column on the fired-trigger table, the misfire threshold and
+    /// fixed-delay columns on the triggers table, and the trigger rollup table.
     /// </summary>
     [Test]
     public async Task A43SchemaIsBroughtToAFreshInstallByAddingOnly()
@@ -182,8 +182,8 @@ public sealed class MySqlWeaselSchemaTest
             List<ISchemaObjectDelta> changed = [.. planned.Deltas.Where(x => x.Difference != SchemaPatchDifference.None)];
 
             changed.Select(x => (x.SchemaObject.Identifier.Name.ToUpperInvariant(), x.Difference)).Should().BeEquivalentTo(
-                [("QRTZ_EXECUTION_HISTORY", SchemaPatchDifference.Update), ("QRTZ_JOB_STATUS", SchemaPatchDifference.Create), ("QRTZ_SCHEDULER_STATE", SchemaPatchDifference.Update), ("QRTZ_FIRED_TRIGGERS", SchemaPatchDifference.Update), ("QRTZ_TRIGGERS", SchemaPatchDifference.Update)],
-                "4.4 changes nothing a 4.3 schema has but the history table and adds the rollup, and 4.6 adds the version column to the state table, the interrupt column to the fired-trigger table and the misfire threshold to the triggers table, and 4.7 the fixed-delay column to it: " + Describe(planned));
+                [("QRTZ_EXECUTION_HISTORY", SchemaPatchDifference.Update), ("QRTZ_JOB_STATUS", SchemaPatchDifference.Create), ("QRTZ_SCHEDULER_STATE", SchemaPatchDifference.Update), ("QRTZ_FIRED_TRIGGERS", SchemaPatchDifference.Update), ("QRTZ_TRIGGERS", SchemaPatchDifference.Update), ("QRTZ_TRIGGER_STATUS", SchemaPatchDifference.Create)],
+                "4.4 changes nothing a 4.3 schema has but the history table and adds the rollup, and 4.6 adds the version column to the state table, the interrupt column to the fired-trigger table and the misfire threshold to the triggers table, 4.7 the fixed-delay column to it, and 4.9 the trigger rollup: " + Describe(planned));
 
             TableDelta history = changed.OfType<TableDelta>().Single(x => x.SchemaObject.Identifier.Name.Equals("QRTZ_EXECUTION_HISTORY", StringComparison.OrdinalIgnoreCase));
             history.Columns!.Missing.Select(x => x.Name).Should().BeEquivalentTo(["RESULT", "SUMMARY", "METRICS", "MANUAL", "FIRE_INSTANCE_ID", "JOB_INPUT", "JOB_INPUT_TOO_LARGE"]);
@@ -218,7 +218,7 @@ public sealed class MySqlWeaselSchemaTest
         }
 
         (SchemaSnapshot after, List<string> afterDetails) = await database.ReadAsync();
-        after.Tables.Except(before.Tables).Should().Equal(["JOB_STATUS"]);
+        after.Tables.Except(before.Tables).Should().Equal(["JOB_STATUS", "TRIGGER_STATUS"]);
         after.Columns.Should().Contain(before.Columns, "an add-only apply alters and drops no column a 4.3 schema has");
         after.Indexes.Should().Contain(before.Indexes, "nor an index");
         afterDetails.Should().Contain(beforeDetails, "nor a type, a default, a key or a direction");
@@ -226,7 +226,7 @@ public sealed class MySqlWeaselSchemaTest
         await using MySqlWeaselDatabase fresh = await MySqlWeaselDatabase.CreateAsync();
         await fresh.RunRepositoryScriptAsync("database", "tables", "tables_mysql_innodb.sql");
 
-        await ShouldMatchAsync(database, fresh, "what 4.4, 4.6 and 4.7 added is all a 4.3 schema lacks");
+        await ShouldMatchAsync(database, fresh, "what 4.4, 4.6, 4.7 and 4.9 added is all a 4.3 schema lacks");
         await ShouldHoldTheSeedAsync(database);
         await ShouldHoldTheHistoryRowWithNoOutcomeAsync(database);
     }

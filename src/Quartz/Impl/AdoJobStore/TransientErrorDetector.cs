@@ -122,7 +122,7 @@ internal static class TransientErrorDetector
     /// on shape rather than on a base class, so the <c>IscException</c> Firebird nests inside, which
     /// carries the same property, answers too.
     /// </remarks>
-    private static string? GetSqlState(Exception exception)
+    internal static string? GetSqlState(Exception exception)
     {
         if (exception is DbException { SqlState: { Length: > 0 } sqlState })
         {
@@ -151,6 +151,16 @@ internal static class TransientErrorDetector
     /// </remarks>
     private static bool IsTransientSqlServerError(Exception exception)
     {
+        return HasErrorNumber(exception, static number => IsTransientSqlServerErrorNumber(number));
+    }
+
+    /// <summary>
+    /// Whether the exception carries an error whose number <paramref name="match" /> accepts, on an <c>Errors</c>
+    /// collection whose items have a <c>Number</c>: SQL Server's <c>SqlException</c>, and Firebird's
+    /// <c>FbException</c>, which spells its error codes the same way.
+    /// </summary>
+    internal static bool HasErrorNumber(Exception exception, Func<int, bool> match)
+    {
         PropertyInfo? errorsProperty = errorsProperties.GetOrAdd(
             exception.GetType(),
             static type => FindDriverProperty(type, "Errors"));
@@ -173,7 +183,7 @@ internal static class TransientErrorDetector
                 error.GetType(),
                 static type => FindDriverProperty(type, "Number"));
 
-            if (numberProperty?.GetValue(error) is int errorNumber && IsTransientSqlServerErrorNumber(errorNumber))
+            if (numberProperty?.GetValue(error) is int errorNumber && match(errorNumber))
             {
                 return true;
             }
@@ -374,6 +384,8 @@ internal static class TransientErrorDetector
     [DynamicDependency("SqliteErrorCode", "Microsoft.Data.Sqlite.SqliteException", "Microsoft.Data.Sqlite")]
     [DynamicDependency("ResultCode", "System.Data.SQLite.SQLiteException", "System.Data.SQLite")]
     [DynamicDependency("SQLSTATE", "FirebirdSql.Data.FirebirdClient.FbException", "FirebirdSql.Data.FirebirdClient")]
+    [DynamicDependency("Errors", "FirebirdSql.Data.FirebirdClient.FbException", "FirebirdSql.Data.FirebirdClient")]
+    [DynamicDependency("Number", "FirebirdSql.Data.FirebirdClient.FbError", "FirebirdSql.Data.FirebirdClient")]
     [DynamicDependency("SQLSTATE", "FirebirdSql.Data.Common.IscException", "FirebirdSql.Data.FirebirdClient")]
     [UnconditionalSuppressMessage("Trimming", "IL2070", Justification = "Every driver member this is asked for is kept by the DynamicDependency attributes beside it whenever the driver is in the application. Any other type answers null, which classifies its error as not transient - the answer an exception Quartz has never heard of always got.")]
     [UnconditionalSuppressMessage("Trimming", "IL2035", Justification = "The drivers are optional. One that is not in the application throws no exception to classify, so there is nothing of it to keep.")]

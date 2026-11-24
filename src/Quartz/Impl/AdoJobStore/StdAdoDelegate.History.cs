@@ -1218,9 +1218,14 @@ public partial class StdAdoDelegate
     }
 
     /// <summary>
-    /// Whether the database has <c>QRTZ_TRIGGER_STATUS</c>: asked only after a status read failed, by a store whose
-    /// database was never validated, a store window's.
+    /// Whether the database has <c>QRTZ_TRIGGER_STATUS</c>: asked only after a status read failed saying a table does
+    /// not exist, by a store whose database was never validated, a store window's.
     /// </summary>
+    /// <remarks>
+    /// Only the dialect's "no such table" answers <see langword="false" />. Any other failure of the probe, a
+    /// connection lost since the read, propagates, so it reads as the failed read it is rather than as a database
+    /// nobody migrated.
+    /// </remarks>
     /// <param name="conn">The unit of work, which is the history store's own connection.</param>
     /// <param name="cancellationToken">The cancellation instruction.</param>
     internal virtual async ValueTask<bool> HasTriggerRunStatusTable(
@@ -1234,7 +1239,7 @@ public partial class StdAdoDelegate
             using DbDataReader rs = await cmd.ExecuteReaderAsync(cancellationToken).ConfigureAwait(false);
             return true;
         }
-        catch (DbException)
+        catch (DbException failure) when (UndefinedTableDetector.IsUndefinedTable(failure))
         {
             return false;
         }

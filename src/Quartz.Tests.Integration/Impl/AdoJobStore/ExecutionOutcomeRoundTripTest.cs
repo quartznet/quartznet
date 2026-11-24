@@ -387,6 +387,22 @@ public abstract class ExecutionOutcomeRoundTripTest
     }
 
     /// <summary>
+    /// A database without the 4.9 table, as a store window over one nobody migrated sees it: this dialect's driver
+    /// reports the missing table in the words the store recognises, so the read names the script rather than failing
+    /// as if the database had gone away.
+    /// </summary>
+    [Test]
+    public async Task AReadOverADatabaseWithoutTheTriggerStatusTableNamesTheScript()
+    {
+        using AdoExecutionHistoryStore store = await CreateStore(_ => { }, tablePrefix: "QRTZNONE_");
+
+        Func<Task> read = async () => await store.QueryTriggerRunStatuses(new TriggerRunStatusQuery { SchedulerName = schedulerName });
+
+        (await read.Should().ThrowAsync<NotSupportedException>("no table of that prefix exists, and the driver says so in its own words"))
+            .WithMessage("*QRTZNONE_TRIGGER_STATUS*4.9/add_trigger_status_*");
+    }
+
+    /// <summary>
     /// Every sweep statement runs on this dialect and deletes what it should: the longest window, a
     /// shorter window for its results, the per-job cap, the misfire feed and the statuses of deleted jobs.
     /// </summary>
@@ -763,7 +779,8 @@ public abstract class ExecutionOutcomeRoundTripTest
 
     private async ValueTask<AdoExecutionHistoryStore> CreateStore(
         Action<ExecutionHistoryOptions> configure,
-        AdoJobStoreOptions storeOptions = null)
+        AdoJobStoreOptions storeOptions = null,
+        string tablePrefix = "QRTZ_")
     {
         string connectionString = await PrepareDatabase();
         dbProvider = new DbProvider(DbProviderName, connectionString);
@@ -771,7 +788,7 @@ public abstract class ExecutionOutcomeRoundTripTest
         driverDelegate = CreateDriverDelegate();
         driverDelegate.Initialize(new DriverDelegateContext
         {
-            TablePrefix = "QRTZ_",
+            TablePrefix = tablePrefix,
             SchedulerName = schedulerName,
             InstanceId = "node-a",
             DbProvider = dbProvider,
