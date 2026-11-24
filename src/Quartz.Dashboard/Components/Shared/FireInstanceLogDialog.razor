@@ -2,18 +2,20 @@
 @using System.Text
 @using Microsoft.Extensions.DependencyInjection
 @using Microsoft.Extensions.Options
+@using Microsoft.JSInterop
 @using Quartz
 @using Quartz.Dashboard.Services
-@implements IDisposable
+@implements IAsyncDisposable
 @inject IQuartzApiClient Api
 @inject SchedulerState Scheduler
 @inject IOptions<QuartzDashboardOptions> Options
 @inject IServiceProvider Services
+@inject IJSRuntime JS
 
 @* Follows one running firing's log (#4437): every two seconds while it is open, the lines after the last one it has,
    read in the process running the firing. It holds its own copy of the row, so the page's refresh dropping a finished
    firing leaves it open; and its own timer, which the dialog closing, or the page going, stops. *@
-<ModalDialog Class="qz-log-dialog" LabelledBy="qz-log-dialog-title" TestId="log-dialog" ReturnFocus="ReturnFocus" OnCancel="CloseAsync">
+<ModalDialog Class="qz-log-dialog" LabelledBy="qz-log-dialog-title" TestId="log-dialog" ReturnFocus="ReturnFocus" ReturnFocusFallback="ReturnFocusFallback" OnCancel="CloseAsync">
     @if (_phase != Phase.Stopped)
     {
         <AutoRefresh Every="PollInterval" Refresh="TickAsync" />
@@ -24,72 +26,99 @@
         Node <strong>@Firing.SchedulerInstanceId</strong> · fired @Scheduler.FormatInSelectedTimeZone(Firing.FireTimeUtc, "u") · run time @RunTime
     </p>
 
-    <p class="qz-log-dialog-status" role="status" data-testid="log-status">
-        @switch (_outcome)
+    <div class="qz-log-dialog-statusbar">
+        @* Only what changes the reader's situation is in the live region: the state, never the count of lines or the
+           time of the last read, which change every two seconds and would be read out each time. *@
+        <p class="qz-log-dialog-status" data-testid="log-status">
+            <span role="status" data-testid="log-state">
+                @switch (_outcome)
+                {
+                    case Outcome.None when _lastError is not null:
+                        <span>The last read failed, and the next one is in two seconds: @_lastError</span>
+                        break;
+                    case Outcome.None when _phase == Phase.HandingOver:
+                        <span>The run ended. Looking for its execution page…</span>
+                        break;
+                    case Outcome.None when _received == 0 && _updatedAt is null:
+                        <span>Reading…</span>
+                        break;
+                    case Outcome.None when _paused:
+                        <span>Paused</span>
+                        break;
+                    case Outcome.None when _received == 0:
+                        <span>Nothing logged yet</span>
+                        break;
+                    case Outcome.None:
+                        <span>Following</span>
+                        break;
+                    case Outcome.Ended when _recordedLog is not null:
+                        <span>
+                            The run ended. This is its log as recorded.
+                            <a class="qz-log-dialog-link" data-testid="log-execution-link" href="@ExecutionPath">Open its execution page</a>
+                        </span>
+                        break;
+                    case Outcome.Ended:
+                        <span>
+                            The run ended. Its full log, with the lines logged after the last read, is on its
+                            <a class="qz-log-dialog-link" data-testid="log-execution-link" href="@ExecutionPath">execution page</a>.
+                        </span>
+                        break;
+                    case Outcome.EndedWithoutRow:
+                        <span>
+                            The run ended, and its execution is not in the history yet. The trigger's
+                            <a class="qz-log-dialog-link" data-testid="log-past-runs-link" href="@PastRunsPath">Past runs</a> list it once it is.
+                        </span>
+                        break;
+                    case Outcome.EndedWithoutHistory:
+                        <span>This scheduler keeps no history, so the log is not kept after the run.</span>
+                        break;
+                    case Outcome.NotCaptured:
+                        <span>
+                            This scheduler keeps no log lines of its firings. Call <code>UseExecutionLogCapture()</code> on it to
+                            follow a firing here and to keep its log on its execution page.
+                        </span>
+                        break;
+                    case Outcome.OtherNode:
+                        <span>@Firing.SchedulerInstanceId runs this firing, and this target reaches @_answeringNode. Open @(Firing.SchedulerInstanceId)'s target to follow its log.</span>
+                        break;
+                    case Outcome.Unreachable when _answeringNode is null:
+                        <span>
+                            No process this dashboard reaches runs this firing: the scheduler is read through its store. Its log is
+                            on its execution page once it ends.
+                        </span>
+                        break;
+                    case Outcome.Unreachable:
+                        <span>
+                            @_answeringNode runs this firing, and no member target of this cluster fronts it, so its log cannot be
+                            followed here. Its log is on its execution page once it ends.
+                        </span>
+                        break;
+                    case Outcome.NotSupported:
+                        <span>@_lastError</span>
+                        break;
+                    case Outcome.Failed:
+                        <span>Stopped after @MaxFailures failed reads in a row: @_lastError</span>
+                        break;
+                }
+            </span>
+            @if (Progress is { } progress)
+            {
+                <span class="qz-log-dialog-progress" data-testid="log-progress">@progress</span>
+            }
+        </p>
+        @if (ShowsJumpToLatest)
         {
-            case Outcome.None when _lastError is not null:
-                <span>The last read failed, and the next one is in two seconds: @_lastError</span>
-                break;
-            case Outcome.None when _phase == Phase.HandingOver:
-                <span>The run ended. Looking for its execution page…</span>
-                break;
-            case Outcome.None when _received == 0 && _updatedAt is null:
-                <span>Reading…</span>
-                break;
-            case Outcome.None when _received == 0:
-                <span>Nothing logged yet · updated @UpdatedAt</span>
-                break;
-            case Outcome.None:
-                <span>Following · @LineCount · updated @UpdatedAt</span>
-                break;
-            case Outcome.Ended:
-                <span>
-                    The run ended. Its log, as recorded, is on its
-                    <a class="qz-details-link" data-testid="log-execution-link" href="@ExecutionPath">execution page</a>.
-                </span>
-                break;
-            case Outcome.EndedWithoutRow:
-                <span>
-                    The run ended, and its execution is not in the history yet. The trigger's
-                    <a class="qz-details-link" data-testid="log-past-runs-link" href="@PastRunsPath">Past runs</a> list it once it is.
-                </span>
-                break;
-            case Outcome.EndedWithoutHistory:
-                <span>This scheduler keeps no history, so the log is not kept after the run.</span>
-                break;
-            case Outcome.NotCaptured:
-                <span>
-                    This scheduler keeps no log lines of its firings. Call <code>UseExecutionLogCapture()</code> on it to
-                    follow a firing here and to keep its log on its execution page.
-                </span>
-                break;
-            case Outcome.OtherNode:
-                <span>@Firing.SchedulerInstanceId runs this firing, and this target reaches @_answeringNode. Open @(Firing.SchedulerInstanceId)'s target to follow its log.</span>
-                break;
-            case Outcome.Unreachable when _answeringNode is null:
-                <span>
-                    No process this dashboard reaches runs this firing: the scheduler is read through its store. Its log is
-                    on its execution page once it ends.
-                </span>
-                break;
-            case Outcome.Unreachable:
-                <span>
-                    @_answeringNode runs this firing, and no member target of this cluster fronts it, so its log cannot be
-                    followed here. Its log is on its execution page once it ends.
-                </span>
-                break;
-            case Outcome.NotSupported:
-                <span>@_lastError</span>
-                break;
-            case Outcome.Failed:
-                <span>Stopped after @MaxFailures failed reads in a row: @_lastError</span>
-                break;
+            <button type="button" class="qz-button" data-testid="log-jump" @onclick="JumpToLatestAsync">Jump to latest</button>
         }
-    </p>
-
-    <div class="qz-log-follow" data-testid="log-scroller">
-        <pre class="qz-execution-log" tabindex="0" aria-label="Log lines" data-testid="log-lines">@LogText</pre>
     </div>
+
+    @* No box until there is a line to put in it. *@
+    @if (LogText.Length > 0)
+    {
+        <div class="qz-log-follow" data-testid="log-scroller" @ref="_scroller">
+            <pre class="qz-execution-log" tabindex="0" aria-label="Log lines" data-testid="log-lines">@LogText</pre>
+        </div>
+    }
 
     <div class="qz-confirm-actions">
         @if (_outcome == Outcome.Failed)
@@ -162,6 +191,22 @@
     private DateTimeOffset? _updatedAt;
     private DateTimeOffset? _endedAt;
 
+    /// <summary>The log as the history recorded it, which the dialog shows in full once the run has ended.</summary>
+    private string? _recordedLog;
+
+    /// <summary>How long the run took, as the history recorded it.</summary>
+    private TimeSpan? _recordedDuration;
+
+    /// <summary>Whether the reader scrolled up off the newest line, and how many lines arrived below since.</summary>
+    private bool _paused;
+    private long _newWhilePaused;
+
+    private ElementReference _scroller;
+    private bool _observing;
+    private int _observer;
+    private DotNetObjectReference<FireInstanceLogDialog>? _self;
+    private bool _disposed;
+
     /// <summary>
     /// The row the dialog was opened from, as it was then: the page's refresh does not reach it.
     /// </summary>
@@ -178,6 +223,10 @@
     [Parameter]
     public ElementReference? ReturnFocus { get; set; }
 
+    /// <summary>Where focus goes as the dialog closes when the opener's row has left the listing by then.</summary>
+    [Parameter]
+    public ElementReference? ReturnFocusFallback { get; set; }
+
     /// <summary>Raised by Close and Escape; the page drops the dialog.</summary>
     [Parameter]
     public EventCallback OnClose { get; set; }
@@ -190,14 +239,50 @@
 
     private string LineCount => _received == 1 ? "1 line" : _received.ToString(CultureInfo.InvariantCulture) + " lines";
 
+    /// <summary>
+    /// What the status line says beside the state while the dialog follows the firing, outside the live region: the
+    /// lines and the last read's time, or the lines below a reader who scrolled up. <see langword="null" /> otherwise.
+    /// </summary>
+    private string? Progress
+    {
+        get
+        {
+            if (_outcome != Outcome.None || _phase != Phase.Following || _lastError is not null || _updatedAt is null)
+            {
+                return null;
+            }
+
+            if (_paused)
+            {
+                return _newWhilePaused == 1
+                    ? " · 1 new line below"
+                    : string.Create(CultureInfo.InvariantCulture, $" · {_newWhilePaused} new lines below");
+            }
+
+            // Led by a space of its own: the renderer keeps none between two elements.
+            return _received == 0 ? " · updated " + UpdatedAt : " · " + LineCount + " · updated " + UpdatedAt;
+        }
+    }
+
+    private bool ShowsJumpToLatest => _paused && _outcome == Outcome.None && _phase == Phase.Following;
+
     private string UpdatedAt => _updatedAt is { } at
         ? Scheduler.ConvertToSelectedTimeZone(at).ToString("HH:mm:ss", CultureInfo.InvariantCulture)
         : string.Empty;
 
+    /// <summary>
+    /// The run time: as the history recorded it once the run has ended and its row is found, else counted to the read
+    /// that saw it end, else to now.
+    /// </summary>
     private string RunTime
     {
         get
         {
+            if (_recordedDuration is { } recorded && recorded > TimeSpan.Zero)
+            {
+                return DisplayValueHelper.FormatRunDuration(recorded);
+            }
+
             TimeSpan runTime = (_endedAt ?? Clock.GetUtcNow()) - Firing.FireTimeUtc;
             return DisplayValueHelper.FormatClock(runTime < TimeSpan.Zero ? TimeSpan.Zero : runTime);
         }
@@ -214,6 +299,11 @@
     {
         get
         {
+            if (_recordedLog is not null)
+            {
+                return _recordedLog;
+            }
+
             if (_text is null)
             {
                 StringBuilder text = new();
@@ -375,9 +465,13 @@
                 Take = 1,
             }, _token);
 
-            if (page.Items.FirstOrDefault()?.EntryId is { Length: > 0 } entryId)
+            if (page.Items.FirstOrDefault() is { EntryId: { Length: > 0 } entryId } row)
             {
+                // The lines logged after the last read went with the firing's buffer; the row the history wrote has
+                // them, when its listing carries the log, and the run time it took.
                 _executionId = entryId;
+                _recordedLog = string.IsNullOrEmpty(row.Log) ? null : row.Log;
+                _recordedDuration = row.Duration;
                 Stop(Outcome.Ended);
                 return;
             }
@@ -416,6 +510,11 @@
 
         _lines.AddRange(answer.Entries);
         _received += answer.Entries.Count;
+        if (_paused)
+        {
+            _newWhilePaused += answer.Entries.Count;
+        }
+
         _next = answer.Next;
 
         if (_lines.Count > MaxLines)
@@ -447,9 +546,100 @@
 
     private Task CloseAsync() => OnClose.InvokeAsync();
 
-    public void Dispose()
+    /// <summary>
+    /// Watches the log's scroller once it is on the page, so the dialog knows when the reader scrolls up off the newest
+    /// line and back. The browser holds the newest line in view itself: the scroller is a column-reverse one.
+    /// </summary>
+    protected override async Task OnAfterRenderAsync(bool firstRender)
     {
+        if (_observing || _disposed || LogText.Length == 0)
+        {
+            return;
+        }
+
+        _observing = true;
+        _self = DotNetObjectReference.Create(this);
+        try
+        {
+            _observer = await JS.InvokeAsync<int>("quartzDashboardLogFollow.observe", _scroller, _self);
+        }
+        catch (JSException)
+        {
+            // The script did not run: the log still stays on its newest line, and the status never says paused.
+        }
+        catch (JSDisconnectedException)
+        {
+        }
+        catch (InvalidOperationException)
+        {
+            // Rendered where there is no browser.
+        }
+    }
+
+    /// <summary>
+    /// Called by the browser as the reader scrolls off the newest line, and back onto it.
+    /// </summary>
+    [JSInvokable]
+    public Task OnFollowingChanged(bool following)
+    {
+        return InvokeAsync(() =>
+        {
+            if (_disposed || _paused == !following)
+            {
+                return;
+            }
+
+            _paused = !following;
+            _newWhilePaused = 0;
+            StateHasChanged();
+        });
+    }
+
+    /// <summary>
+    /// Scrolls to the newest line and follows again.
+    /// </summary>
+    private async Task JumpToLatestAsync()
+    {
+        _paused = false;
+        _newWhilePaused = 0;
+        try
+        {
+            await JS.InvokeVoidAsync("quartzDashboardLogFollow.toLatest", _scroller);
+        }
+        catch (JSException)
+        {
+        }
+        catch (JSDisconnectedException)
+        {
+        }
+        catch (InvalidOperationException)
+        {
+        }
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        _disposed = true;
         _cancellation.Cancel();
         _cancellation.Dispose();
+
+        if (_observer != 0)
+        {
+            try
+            {
+                await JS.InvokeVoidAsync("quartzDashboardLogFollow.unobserve", _observer);
+            }
+            catch (JSException)
+            {
+            }
+            catch (JSDisconnectedException)
+            {
+            }
+            catch (InvalidOperationException)
+            {
+            }
+        }
+
+        _self?.Dispose();
     }
 }

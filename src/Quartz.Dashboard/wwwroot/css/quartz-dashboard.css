@@ -1423,19 +1423,50 @@ body{
     margin-bottom: var(--qz-space-md);
 }
 
-/* A running firing's log (#4437): wider than a prompt, as wide as the window less its margin on a phone. */
+/* A running firing's log (#4437): wider than a prompt, as wide as the window less its margin on a phone. The dialog is
+   never taller than the window's dynamic height less the overlay's margin, so Close stays on screen on any phone, and
+   the log takes what the heading, the status and the buttons leave: one scroller, the log's. */
 .qz-confirm-dialog.qz-log-dialog {
+    display: flex;
+    flex-direction: column;
     max-width: 760px;
+    max-height: calc(100vh - 2 * var(--qz-space-md));
+    max-height: calc(100dvh - 2 * var(--qz-space-md));
 }
 
-.qz-log-dialog .qz-log-dialog-meta,
-.qz-log-dialog .qz-log-dialog-status {
+.qz-log-dialog > * {
+    flex-shrink: 0;
+}
+
+.qz-log-dialog .qz-log-dialog-meta {
     margin: var(--qz-space-xs) 0;
     overflow-wrap: anywhere;
 }
 
+.qz-log-dialog .qz-log-dialog-statusbar {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--qz-space-xs) var(--qz-space-sm);
+    margin: var(--qz-space-xs) 0;
+}
+
 .qz-log-dialog .qz-log-dialog-status {
+    flex: 1 1 16rem;
+    margin: 0;
     color: var(--qz-color-text);
+    overflow-wrap: anywhere;
+}
+
+.qz-log-dialog .qz-log-dialog-progress {
+    color: var(--qz-color-text-secondary);
+}
+
+/* Told apart from the sentence around it by more than its colour. */
+.qz-log-dialog .qz-log-dialog-link {
+    color: var(--qz-color-link);
+    text-decoration: underline;
+    text-underline-offset: 2px;
 }
 
 /* The log stays on its newest line while the reader is there, and keeps a reader who scrolled up where they are:
@@ -1451,6 +1482,11 @@ body{
     background-color: var(--qz-color-surface-alt);
 }
 
+.qz-log-dialog > .qz-log-follow {
+    flex: 0 1 auto;
+    min-height: 4.5rem;
+}
+
 .qz-log-follow > .qz-execution-log {
     margin: 0;
     max-height: none;
@@ -1458,6 +1494,78 @@ body{
     border: none;
     border-radius: 0;
     overflow-wrap: anywhere;
+}
+
+/* The dashboard's ring, on the box the arrow keys scroll rather than on the text inside it, which it would clip. */
+.qz-log-follow > .qz-execution-log:focus {
+    outline: none;
+}
+
+.qz-log-follow:has(> .qz-execution-log:focus-visible) {
+    outline: 2px solid var(--qz-color-primary);
+    outline-offset: 2px;
+}
+
+/* Currently Executing: no sideways scroll at 1440 px. Nine columns on the small padding; a key wraps where the key
+   itself breaks, after the group's dot and between words, never inside one; the times keep one line; Show log and
+   Interrupt sit side by side. */
+.qz-executing-table th,
+.qz-executing-table td {
+    padding-left: var(--qz-space-sm);
+    padding-right: var(--qz-space-sm);
+}
+
+.qz-executing-table td.qz-col-key .qz-key-badge {
+    max-width: 16rem;
+}
+
+.qz-executing-table td.qz-col-key .qz-key-badge-value {
+    white-space: normal;
+    overflow-wrap: break-word;
+    text-overflow: clip;
+}
+
+.qz-executing-table th.qz-col-group {
+    white-space: normal;
+}
+
+.qz-executing-table td.qz-col-time {
+    white-space: nowrap;
+}
+
+.qz-executing-table .qz-executing-fired > span {
+    display: inline-block;
+    white-space: nowrap;
+}
+
+.qz-executing-table td.qz-col-actions .qz-actions {
+    flex-wrap: nowrap;
+}
+
+/* The execution group under the node, where its own column has gone. */
+.qz-executing-table .qz-executing-group-inline {
+    display: none;
+    font-size: var(--qz-font-size-xs);
+}
+
+/* Narrower than 1280 px: the fire time takes two lines, its date and its time each whole; the buttons may stack; and
+   the execution group moves under the node, as History lets its node column go below 1600 px. */
+@media (max-width: 1279px) {
+    .qz-executing-table .qz-col-group {
+        display: none;
+    }
+
+    .qz-executing-table .qz-executing-group-inline {
+        display: block;
+    }
+
+    .qz-executing-table td.qz-col-time {
+        white-space: normal;
+    }
+
+    .qz-executing-table td.qz-col-actions .qz-actions {
+        flex-wrap: wrap;
+    }
 }
 
 /* What a pause recorded, beside the paused state it explains: the paused states' amber, as a note. It wraps
