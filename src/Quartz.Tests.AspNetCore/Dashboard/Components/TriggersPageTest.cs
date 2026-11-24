@@ -4,6 +4,8 @@ using Bunit;
 
 using FakeItEasy;
 
+using Microsoft.AspNetCore.Components;
+
 using Quartz.Dashboard.Components.Pages;
 using Quartz.Dashboard.Services;
 using Quartz.Tests.AspNetCore.Support;
@@ -799,6 +801,71 @@ public class TriggersPageTest
         context.ActionLog.GetLatest(2).Should().OnlyContain(entry => !entry.Succeeded && entry.Message!.Contains("read-only"));
     }
 
+    /// <summary>
+    /// Clear selection takes the bar it stands in away, so focus goes to the listing rather than fall to the body.
+    /// </summary>
+    [Test]
+    public void ClearingTheSelectionMovesFocusToTheListing()
+    {
+        GivenTriggers(TestData.Dashboard.TriggerHeaders("nightly", 2));
+        IRenderedComponent<Triggers> page = context.Render<Triggers>();
+        string listing = ReferenceOf(page.Find("[data-testid=trigger-results]"));
+        Select(page, "nightly.trigger-1");
+        page.WaitForElement(".qz-bulk-clear");
+        int focusedSoFar = Focused().Count;
+
+        page.Find(".qz-bulk-clear").Click();
+
+        page.WaitForAssertion(() => page.FindAll("[data-testid=trigger-bulk-actions]").Should().BeEmpty());
+        page.WaitForAssertion(() => Focused().Should().HaveCount(focusedSoFar + 1));
+        LastFocused().Should().Be(listing);
+    }
+
+    /// <summary>
+    /// Dismiss removes the result it stands in, so focus goes to the listing rather than fall to the body.
+    /// </summary>
+    [Test]
+    public void DismissingTheResultMovesFocusToTheListing()
+    {
+        GivenTriggers(TestData.Dashboard.TriggerHeaders("nightly", 2));
+        A.CallTo(() => context.Api.ResumeTriggers(A<string>._, A<IReadOnlyCollection<TriggerKeyDto>>._, A<CancellationToken>._))
+            .Returns(new List<TriggerKeyDto>());
+        IRenderedComponent<Triggers> page = context.Render<Triggers>();
+        string listing = ReferenceOf(page.Find("[data-testid=trigger-results]"));
+        page.Find("input.qz-select-group").Change(true);
+        page.Find(".qz-bulk-resume").Click();
+        page.WaitForElement("[data-testid=trigger-bulk-result]");
+        int focusedSoFar = Focused().Count;
+
+        page.Find(".qz-bulk-result-dismiss").Click();
+
+        page.WaitForAssertion(() => page.FindAll("[data-testid=trigger-bulk-result]").Should().BeEmpty());
+        page.WaitForAssertion(() => Focused().Should().HaveCount(focusedSoFar + 1));
+        LastFocused().Should().Be(listing);
+    }
+
+    /// <summary>
+    /// A bulk action spends the selection, which takes the bar and the button pressed with it, so focus goes to the
+    /// listing as it is read again.
+    /// </summary>
+    [Test]
+    public void ABulkActionMovesFocusToTheListingAsItsBarGoes()
+    {
+        GivenTriggers(TestData.Dashboard.TriggerHeaders("nightly", 2, TriggerState.Paused));
+        A.CallTo(() => context.Api.ResumeTriggers(TestData.SchedulerName, A<IReadOnlyCollection<TriggerKeyDto>>._, A<CancellationToken>._))
+            .ReturnsLazily((string _, IReadOnlyCollection<TriggerKeyDto> keys, CancellationToken _) => keys.ToList());
+        IRenderedComponent<Triggers> page = context.Render<Triggers>();
+        string listing = ReferenceOf(page.Find("[data-testid=trigger-results]"));
+        page.Find("input.qz-select-group").Change(true);
+        int focusedSoFar = Focused().Count;
+
+        page.Find(".qz-bulk-resume").Click();
+
+        page.WaitForAssertion(() => page.FindAll("[data-testid=trigger-bulk-actions]").Should().BeEmpty());
+        page.WaitForAssertion(() => Focused().Should().HaveCount(focusedSoFar + 1));
+        LastFocused().Should().Be(listing);
+    }
+
     [Test]
     public void ApplyingAFilterClearsTheSelection()
     {
@@ -1029,6 +1096,28 @@ public class TriggersPageTest
     private static void Select(IRenderedComponent<Triggers> page, string key)
     {
         page.Find("input.qz-select-trigger[aria-label='Select " + key + "']").Change(true);
+    }
+
+    /// <summary>The ids of the elements focus was moved to, in order.</summary>
+    private List<string> Focused()
+    {
+        return context.JSInterop.Invocations
+            .Where(invocation => invocation.Identifier == "Blazor._internal.domWrapper.focus")
+            .Select(invocation => ((ElementReference) invocation.Arguments[0]!).Id)
+            .ToList();
+    }
+
+    private string LastFocused() => Focused().Should().NotBeEmpty().And.Subject.Last();
+
+    /// <summary>
+    /// The id an element's <c>@ref</c> is focused by, read off its first render: a later render of the element does not
+    /// carry it again.
+    /// </summary>
+    private static string ReferenceOf(IElement element)
+    {
+        string? id = element.GetAttribute("blazor:elementreference");
+        id.Should().NotBeNullOrEmpty();
+        return id!;
     }
 
     /// <summary>
