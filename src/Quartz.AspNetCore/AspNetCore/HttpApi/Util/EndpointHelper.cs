@@ -143,7 +143,9 @@ internal sealed class EndpointHelper
             return null;
         }
 
-        return request.AsPauseDetails(AuthenticatedUser(context));
+        PauseDetails details = request.AsPauseDetails(AuthenticatedUser(context));
+        AuditNote.Add(context, AuditNote.PauseReason(details));
+        return details;
     }
 
     /// <summary>
@@ -156,13 +158,17 @@ internal sealed class EndpointHelper
     /// </remarks>
     public static PauseDetails? KeySetPauseDetailsFor(TriggerKeySetPauseRequest request, HttpContext context)
     {
-        return request.AsPauseDetails(AuthenticatedUser(context));
+        PauseDetails? details = request.AsPauseDetails(AuthenticatedUser(context));
+        AuditNote.Add(context, AuditNote.PauseReason(details));
+        return details;
     }
 
     /// <inheritdoc cref="KeySetPauseDetailsFor(TriggerKeySetPauseRequest, HttpContext)" />
     public static PauseDetails? KeySetPauseDetailsFor(JobKeySetPauseRequest request, HttpContext context)
     {
-        return request.AsPauseDetails(AuthenticatedUser(context));
+        PauseDetails? details = request.AsPauseDetails(AuthenticatedUser(context));
+        AuditNote.Add(context, AuditNote.PauseReason(details));
+        return details;
     }
 
     /// <summary>
@@ -270,6 +276,14 @@ internal sealed class EndpointHelper
         return ExecuteWithScheduler(schedulerName, target, context, schedulerRepository, async scheduler =>
         {
             var response = await action(scheduler).ConfigureAwait(false);
+
+            // An answer that says nothing was applied is entered as not done, as the dashboard enters a pause
+            // or an interrupt that did not land.
+            if (response is OperationAppliedResponse { Applied: false })
+            {
+                AuditNote.NotApplied(context);
+            }
+
             return JsonResponse(response);
         });
     }

@@ -385,6 +385,11 @@ internal static class JobEndpoints
             return refusal;
         }
 
+        if (SchedulerRoutes.CarriesJobData(request?.JobData))
+        {
+            AuditNote.Add(httpContext, "with job data");
+        }
+
         return await EndpointHelper.ExecuteWithOkResponse(schedulerName, target, httpContext, schedulerRepository,
             scheduler => SchedulerOperations.TriggerJob(scheduler, new JobKey(jobName, jobGroup), request, cancellationToken)).ConfigureAwait(false);
     }
@@ -400,6 +405,7 @@ internal static class JobEndpoints
         string jobName,
         CancellationToken cancellationToken = default)
     {
+        AuditNote.IfNotApplied(httpContext, "no firing of the job was running");
         return endpointHelper.ExecuteWithJsonResponse(schedulerName, target, httpContext, schedulerRepository,
             scheduler => SchedulerOperations.InterruptJob(scheduler, new JobKey(jobName, jobGroup), cancellationToken));
     }
@@ -414,6 +420,7 @@ internal static class JobEndpoints
         string fireInstanceId,
         CancellationToken cancellationToken = default)
     {
+        AuditNote.IfNotApplied(httpContext, "the firing is no longer running");
         return endpointHelper.ExecuteWithJsonResponse(schedulerName, target, httpContext, schedulerRepository,
             scheduler => SchedulerOperations.InterruptJobInstance(scheduler, fireInstanceId, cancellationToken));
     }
