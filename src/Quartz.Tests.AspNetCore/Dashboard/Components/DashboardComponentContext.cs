@@ -5,6 +5,7 @@ using Bunit;
 
 using FakeItEasy;
 
+using Microsoft.AspNetCore.Components;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
@@ -86,6 +87,9 @@ internal sealed class DashboardComponentContext : BunitContext
     public ToastService Toasts { get; }
 
     public DashboardActionLogService ActionLog { get; }
+
+    /// <summary>Where the browser is now, which is what a page navigating away moves.</summary>
+    public string CurrentUri => Services.GetRequiredService<NavigationManager>().Uri;
 
     /// <summary>
     /// The keys of <paramref name="count" /> jobs in <paramref name="group" />, named <c>job-1</c> onwards.
