@@ -85,6 +85,10 @@ internal static class DashboardHost
             foreach (string? provider in providers)
             {
                 options.Rules.Add(new LoggerFilterRule(provider, "Microsoft.AspNetCore.Hosting.Diagnostics", LogLevel.Warning, filter: null));
+
+                // The MCP SDK writes whole JSON-RPC messages at Debug and Trace, and a message's arguments can carry a
+                // confirmation token. Held at Information, so no level of configuration puts one in the host's log.
+                options.Rules.Add(new LoggerFilterRule(provider, "ModelContextProtocol", LogLevel.Information, filter: null));
             }
         });
 
@@ -158,6 +162,18 @@ internal static class DashboardHost
             });
         }
 
+        if (plan.ServesMcp)
+        {
+            // An AI agent's endpoint for the whole fleet, held to the operator roles the dashboard's buttons are, and
+            // read-only unless Quartz:Dashboard:Mcp:ReadOnly says otherwise (#4245).
+            builder.Services.AddQuartzMcp(options =>
+            {
+                options.ReadOnly = plan.Settings.Mcp.ReadOnly;
+                options.OperationAuthorizationPolicy = HostAuthentication.OperationPolicy;
+                options.AllowedOrigins.AddRange(plan.Settings.AllowedOrigins);
+            });
+        }
+
         return plan;
     }
 
@@ -195,6 +211,14 @@ internal static class DashboardHost
             IEndpointConventionBuilder api = app.MapQuartzHttpApi(plan.HttpApiPath).RequireAuthorization(HostAuthentication.ApiPolicy);
             HostAuthentication.RefuseTokenInAddress(api);
             new QuartzRequestGuard(plan.Settings.AllowedOrigins).Apply(api);
+        }
+
+        if (plan.ServesMcp)
+        {
+            // The same: bearer only and never a token in the address. The origin guard is MapQuartzMcp's own, over the
+            // same AllowedOrigins.
+            IEndpointConventionBuilder mcp = app.MapQuartzMcp(plan.McpPath).RequireAuthorization(HostAuthentication.ApiPolicy);
+            HostAuthentication.RefuseTokenInAddress(mcp);
         }
 
         app.MapQuartzDashboard();

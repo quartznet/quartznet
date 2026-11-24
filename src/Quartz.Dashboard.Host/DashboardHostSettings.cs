@@ -60,6 +60,9 @@ internal sealed class DashboardHostSettings
     /// <summary>The scheduler HTTP API for the whole fleet, under <c>Quartz:Dashboard:HttpApi</c>. Off by default.</summary>
     public HttpApiSettings HttpApi { get; set; } = new();
 
+    /// <summary>The MCP endpoint for the whole fleet, under <c>Quartz:Dashboard:Mcp</c>. Off by default.</summary>
+    public McpSettings Mcp { get; set; } = new();
+
     /// <summary>
     /// The origins a browser may call the host's API from, as <c>scheme://host[:port]</c>. Empty, the default,
     /// refuses every request that carries an <c>Origin</c>; a script sends none.
@@ -81,6 +84,25 @@ internal sealed class HttpApiSettings
 
     /// <summary>Whether the API refuses every change; the host's <c>ReadOnly</c> when unset.</summary>
     public bool? ReadOnly { get; set; }
+}
+
+/// <summary>
+/// The MCP endpoint the host serves for every scheduler it shows (#4245), a tool naming one behind a target by its
+/// key.
+/// </summary>
+internal sealed class McpSettings
+{
+    /// <summary>Whether the host maps the endpoint at all. False by default: a new surface for an agent is asked for.</summary>
+    public bool Enabled { get; set; }
+
+    /// <summary>Where it is mapped; <c>/quartz-mcp</c> when unset.</summary>
+    public string? Path { get; set; }
+
+    /// <summary>
+    /// Whether the endpoint refuses every change. True by default, and not the host's <c>ReadOnly</c>: an agent writes
+    /// only where it is said in so many words.
+    /// </summary>
+    public bool ReadOnly { get; set; } = true;
 }
 
 /// <summary>

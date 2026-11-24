@@ -97,7 +97,7 @@ internal static class HostAuthentication
             case HostAuthenticationMode.Token:
                 AuthenticationBuilder tokens = services.AddAuthentication(CookieScheme)
                     .AddCookie(CookieScheme, cookie => ConfigureCookie(cookie, SameSiteMode.Strict, loginPath: LoginPath));
-                if (plan.ServesHttpApi)
+                if (plan.ServesBearer)
                 {
                     tokens.AddScheme<AuthenticationSchemeOptions, TokenBearerHandler>(BearerScheme, _ => { });
                 }
@@ -113,7 +113,7 @@ internal static class HostAuthentication
                     })
                     .AddCookie(CookieScheme, cookie => ConfigureCookie(cookie, SameSiteMode.Lax, loginPath: null))
                     .AddOpenIdConnect(OpenIdConnectDefaults.AuthenticationScheme, oidc => ConfigureOpenIdConnect(oidc, settings));
-                if (plan.ServesHttpApi)
+                if (plan.ServesBearer)
                 {
                     oidcBuilder.AddJwtBearer(BearerScheme, jwt => ConfigureJwtBearer(jwt, settings));
                 }
