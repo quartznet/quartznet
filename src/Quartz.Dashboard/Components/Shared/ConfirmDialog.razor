@@ -2,7 +2,7 @@
    pressed out of habit confirms nothing. *@
 @if (IsOpen)
 {
-    <ModalDialog LabelledBy="@_titleId" OnCancel="CancelAsync">
+    <ModalDialog LabelledBy="@_titleId" ReturnFocus="ReturnFocus" OnCancel="CancelAsync">
         <h3 id="@_titleId">@Title</h3>
         <p>@Message</p>
         <div class="qz-confirm-actions">
@@ -20,6 +20,13 @@
 
     [Parameter]
     public bool IsOpen { get; set; }
+
+    /// <summary>
+    /// The control that opened the dialog, which focus goes back to as it closes, or <see langword="null" /> for
+    /// whatever had focus as it opened: see <see cref="ModalDialog.ReturnFocus" />.
+    /// </summary>
+    [Parameter]
+    public ElementReference? ReturnFocus { get; set; }
 
     [Parameter]
     public string Title { get; set; } = "Confirm action";

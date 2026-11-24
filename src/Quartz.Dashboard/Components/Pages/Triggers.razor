@@ -103,7 +103,7 @@
             <span class="qz-bulk-count">@_selected.Count selected</span>
             @if (Can(Routes.PauseTriggerKeys))
             {
-                <button type="button" class="qz-button qz-bulk-pause" @onclick="PromptPauseSelection">Pause selected</button>
+                <button type="button" class="qz-button qz-bulk-pause" @ref="_bulkPauseButton" @onclick="PromptPauseSelection">Pause selected</button>
             }
             @if (Can(Routes.ResumeTriggerKeys))
             {
@@ -111,7 +111,7 @@
             }
             @if (Can(Routes.UnscheduleJobs))
             {
-                <button type="button" class="qz-button qz-button-danger qz-bulk-unschedule" @onclick="PromptUnscheduleSelection">Unschedule selected</button>
+                <button type="button" class="qz-button qz-button-danger qz-bulk-unschedule" @ref="_bulkUnscheduleButton" @onclick="PromptUnscheduleSelection">Unschedule selected</button>
             }
             <button type="button" class="qz-button qz-bulk-clear" @onclick="ClearSelection">Clear selection</button>
         </div>
@@ -162,7 +162,7 @@
                     <div class="qz-actions qz-group-actions">
                         @if (CanPauseGroup)
                         {
-                            <button type="button" class="qz-button" @onclick="() => PromptPauseGroup(group.Key)">Pause group</button>
+                            <button type="button" class="qz-button" @ref="_groupPauseButtons[group.Key]" @onclick="() => PromptPauseGroup(group.Key)">Pause group</button>
                         }
                         @if (CanResumeGroup)
                         {
@@ -282,7 +282,7 @@
                                         <div class="qz-actions" @onclick:stopPropagation="true">
                                             @if (CanPause)
                                             {
-                                                <button type="button" class="qz-button" @onclick="() => PromptPauseTrigger(triggerGroup, triggerName)">Pause</button>
+                                                <button type="button" class="qz-button" @ref="_rowPauseButtons[triggerKey]" @onclick="() => PromptPauseTrigger(triggerGroup, triggerName)">Pause</button>
                                             }
                                             @if (CanResume)
                                             {
@@ -290,7 +290,7 @@
                                             }
                                             @if (CanUnschedule)
                                             {
-                                                <button type="button" class="qz-button qz-button-danger" @onclick="() => PromptUnschedule(triggerGroup, triggerName)">Unschedule</button>
+                                                <button type="button" class="qz-button qz-button-danger" @ref="_rowUnscheduleButtons[triggerKey]" @onclick="() => PromptUnschedule(triggerGroup, triggerName)">Unschedule</button>
                                             }
                                         </div>
                                     </td>
@@ -312,6 +312,7 @@
 </div>
 
 <ConfirmDialog IsOpen="@_showUnscheduleConfirm"
+               ReturnFocus="@_unscheduleOpener"
                Title="Unschedule trigger"
                ConfirmText="Unschedule"
                Message="@($"Unschedule {_pendingTriggerKey}?")"
@@ -319,6 +320,7 @@
                OnCancel="CancelUnscheduleAsync" />
 
 <ConfirmDialog IsOpen="@_showBulkUnscheduleConfirm"
+               ReturnFocus="@_bulkUnscheduleButton"
                Title="Unschedule selected triggers"
                ConfirmText="Unschedule"
                Message="@($"Unschedule {TriggerSelectionActions.Triggers(_selected.Count, "selected")}? A job left with no trigger and no durability goes with them.")"
@@ -326,6 +328,7 @@
                OnCancel="CancelBulkUnscheduleAsync" />
 
 <PauseDialog IsOpen="@(_pauseAction is not null)"
+             ReturnFocus="@_pauseOpener"
              Title="@_pauseTitle"
              Message="@_pauseMessage"
              OnConfirm="ConfirmPauseAsync"
@@ -370,6 +373,21 @@
 
     /// <summary>Whether the next render moves focus to <see cref="_results" />.</summary>
     private bool _focusResults;
+
+    // The controls that open a dialog, which focus goes back to as it closes. Without one, focus goes back to whatever
+    // had it as the dialog opened: after a click that moves no focus, as Safari's on a button, that is the page's
+    // heading, and focusing the heading scrolls the page back to its top.
+    private readonly Dictionary<TriggerKeyDto, ElementReference> _rowPauseButtons = [];
+    private readonly Dictionary<TriggerKeyDto, ElementReference> _rowUnscheduleButtons = [];
+    private readonly Dictionary<string, ElementReference> _groupPauseButtons = new(StringComparer.Ordinal);
+    private ElementReference _bulkPauseButton;
+    private ElementReference _bulkUnscheduleButton;
+
+    /// <summary>The control that opened the pause dialog: a row's Pause, Pause group or Pause selected.</summary>
+    private ElementReference? _pauseOpener;
+
+    /// <summary>The row's Unschedule that opened the dialog asking about it.</summary>
+    private ElementReference? _unscheduleOpener;
 
     /// <summary>
     /// When the listing on screen was read, or <see langword="null" /> while it holds nothing read. Each
@@ -979,6 +997,7 @@
 
     private void PromptPauseTrigger(string group, string name)
     {
+        _pauseOpener = _rowPauseButtons.TryGetValue(new TriggerKeyDto(group, name), out ElementReference opener) ? opener : null;
         _pauseTitle = "Pause trigger";
         _pauseMessage = "Pause " + DisplayValueHelper.FormatKey(group, name) + "?";
         _pauseAction = reason => PauseTrigger(group, name, reason);
@@ -986,6 +1005,7 @@
 
     private void PromptPauseGroup(string group)
     {
+        _pauseOpener = _groupPauseButtons.TryGetValue(group, out ElementReference opener) ? opener : null;
         _pauseTitle = "Pause trigger group";
         _pauseMessage = "Pause every trigger in " + group + "?";
         _pauseAction = reason => PauseGroup(group, reason);
@@ -1065,6 +1085,7 @@
 
     private void PromptUnschedule(string group, string name)
     {
+        _unscheduleOpener = _rowUnscheduleButtons.TryGetValue(new TriggerKeyDto(group, name), out ElementReference opener) ? opener : null;
         _pendingGroup = group;
         _pendingName = name;
         _pendingTriggerKey = DisplayValueHelper.FormatKey(group, name);
@@ -1170,6 +1191,7 @@
 
     private void PromptPauseSelection()
     {
+        _pauseOpener = _bulkPauseButton;
         int count = _selected.Count;
         _pauseTitle = "Pause selected triggers";
         _pauseMessage = "Pause " + TriggerSelectionActions.Triggers(count, "selected") + "?";

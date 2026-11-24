@@ -866,6 +866,50 @@ public class TriggersPageTest
         LastFocused().Should().Be(listing);
     }
 
+    /// <summary>
+    /// Each dialog is handed the control that opened it, which focus goes back to as it closes. Without one, focus goes
+    /// back to whatever had it as the dialog opened: after a click that moves no focus, as Safari's on a button, that is
+    /// the page's heading, and focusing the heading scrolls the page back to its top.
+    /// </summary>
+    [TestCase("Pause selected")]
+    [TestCase("Unschedule selected")]
+    [TestCase("a row's Pause")]
+    [TestCase("a row's Unschedule")]
+    [TestCase("Pause group")]
+    public void EachDialogIsHandedTheControlThatOpenedIt(string opener)
+    {
+        GivenTriggers(TestData.Dashboard.TriggerHeaders("nightly", 2));
+        IRenderedComponent<Triggers> page = context.Render<Triggers>();
+        page.WaitForElement("input.qz-select-trigger");
+        if (opener.EndsWith(" selected", StringComparison.Ordinal))
+        {
+            Select(page, "nightly.trigger-1");
+            page.WaitForElement("[data-testid=trigger-bulk-actions]");
+        }
+
+        // Read off the control's first render, the only one that carries its reference.
+        string? control = Opener(page, opener).GetAttribute("blazor:elementreference");
+
+        Opener(page, opener).Click();
+
+        page.WaitForAssertion(() => Invoked("quartzDashboardDialog.open").Should().ContainSingle());
+        IReadOnlyList<object?> arguments = Invoked("quartzDashboardDialog.open")[0].Arguments;
+        arguments.Should().HaveCount(2, "the dialog is handed the control focus goes back to");
+        ((ElementReference) arguments[1]!).Id.Should().Be(control);
+    }
+
+    private static IElement Opener(IRenderedComponent<Triggers> page, string opener)
+    {
+        return opener switch
+        {
+            "Pause selected" => page.Find(".qz-bulk-pause"),
+            "Unschedule selected" => page.Find(".qz-bulk-unschedule"),
+            "a row's Pause" => page.FindAll("td.qz-col-actions button").First(button => button.TextContent.Trim() == "Pause"),
+            "a row's Unschedule" => page.FindAll("td.qz-col-actions button").First(button => button.TextContent.Trim() == "Unschedule"),
+            _ => page.FindAll(".qz-section > .qz-group-actions button").Single(button => button.TextContent.Trim() == "Pause group")
+        };
+    }
+
     [Test]
     public void ApplyingAFilterClearsTheSelection()
     {
@@ -1108,6 +1152,12 @@ public class TriggersPageTest
     }
 
     private string LastFocused() => Focused().Should().NotBeEmpty().And.Subject.Last();
+
+    /// <summary>The calls of one JavaScript function, in order.</summary>
+    private List<JSRuntimeInvocation> Invoked(string identifier)
+    {
+        return context.JSInterop.Invocations.Where(invocation => invocation.Identifier == identifier).ToList();
+    }
 
     /// <summary>
     /// The id an element's <c>@ref</c> is focused by, read off its first render: a later render of the element does not
