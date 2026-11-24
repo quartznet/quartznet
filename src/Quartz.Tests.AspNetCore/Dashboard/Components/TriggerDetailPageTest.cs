@@ -414,6 +414,78 @@ public class TriggerDetailPageTest
             .MustNotHaveHappened();
     }
 
+    /// <summary>
+    /// The router's FocusOnNavigate focuses the heading only when the page type changes; a move to another trigger's
+    /// page - a stored duplicate's among them - is this same page, which focuses its heading itself.
+    /// </summary>
+    [Test]
+    public void AMoveToAnotherTriggersPageFocusesItsHeading()
+    {
+        GivenTrigger(TriggerOfKind("Cron"));
+        IRenderedComponent<TriggerDetail> page = Render();
+        page.WaitForElement("#trigger-cron-expression");
+
+        // Read at the first render: bunit drops the attribute from its markup when it draws the heading again.
+        string heading = page.Find("h1").GetAttribute("blazor:elementreference")!;
+        context.JSInterop.Invocations.Should().NotContain(
+            invocation => invocation.Identifier == "Blazor._internal.domWrapper.focus",
+            "the first visit's heading is the router's to focus");
+
+        page.Render(parameters => parameters
+            .Add(x => x.Group, TriggerGroup)
+            .Add(x => x.Name, TriggerName + "-copy"));
+
+        page.WaitForAssertion(() => ((ElementReference) LastFocused()).Id.Should().Be(heading));
+    }
+
+    /// <summary>
+    /// The reschedule dialog gives focus back to Save schedule, which opened it, whatever had focus as it opened.
+    /// </summary>
+    [Test]
+    public void TheRescheduleDialogReturnsFocusToSaveSchedule()
+    {
+        GivenTrigger(TriggerOfKind("Simple"));
+        IRenderedComponent<TriggerDetail> page = Render();
+        string save = page.WaitForElement("button.qz-schedule-save").GetAttribute("blazor:elementreference")!;
+
+        page.Find("#trigger-simple-interval").Input("30");
+        page.Find("button.qz-schedule-save").Click();
+
+        page.WaitForAssertion(() =>
+        {
+            Bunit.JSRuntimeInvocation open = context.JSInterop.Invocations.Last(invocation => invocation.Identifier == "quartzDashboardDialog.open");
+            open.Arguments.Should().HaveCount(2, "the dialog is handed the control focus goes back to");
+            ((ElementReference) open.Arguments[1]!).Id.Should().Be(save);
+        });
+    }
+
+    [Test]
+    public void RescheduleSaysItIsReschedulingAndSendsOnce()
+    {
+        GivenTrigger(TriggerOfKind("Simple"));
+        TaskCompletionSource pending = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        A.CallTo(() => context.Api.RescheduleJob(A<string>._, A<TriggerKeyDto>._, A<RescheduleRequest>._, A<CancellationToken>._))
+            .Returns(new ValueTask(pending.Task));
+        IRenderedComponent<TriggerDetail> page = Render();
+
+        page.Find("#trigger-simple-interval").Input("30");
+        page.Find("button.qz-schedule-save").Click();
+        page.WaitForElement("[data-testid=reschedule-confirm]").Click();
+
+        page.WaitForAssertion(() =>
+        {
+            AngleSharp.Dom.IElement save = page.Find("button.qz-schedule-save");
+            save.TextContent.Trim().Should().Be("Rescheduling…");
+            save.HasAttribute("disabled").Should().BeTrue();
+            save.GetAttribute("aria-busy").Should().Be("true");
+        });
+        page.Find("button.qz-schedule-save").Click();
+        A.CallTo(() => context.Api.RescheduleJob(A<string>._, A<TriggerKeyDto>._, A<RescheduleRequest>._, A<CancellationToken>._))
+            .MustHaveHappenedOnceExactly();
+
+        pending.SetResult();
+    }
+
     [Test]
     public void SavingAnUnchangedScheduleSendsNothing()
     {
@@ -897,6 +969,14 @@ public class TriggerDetailPageTest
                 .InTimeZone(TimeZoneInfo.Utc)),
             _ => builder.WithRecurrenceSchedule("FREQ=DAILY;BYHOUR=9;BYMINUTE=0;BYSECOND=0", x => x.InTimeZone(TimeZoneInfo.Utc)),
         }).Build();
+    }
+
+    private object LastFocused()
+    {
+        return context.JSInterop.Invocations
+            .Where(invocation => invocation.Identifier == "Blazor._internal.domWrapper.focus")
+            .Last()
+            .Arguments[0]!;
     }
 
     private void GivenDeclaredAtStartup(bool? declared)

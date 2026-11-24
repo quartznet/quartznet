@@ -127,6 +127,40 @@ public sealed class AddTriggerFormTest
             "every other day at 06:00 from the 1st: the 3rd and the 5th are behind 14:23 on the 5th, so the 7th");
     }
 
+    /// <summary>
+    /// While the request is out the button says so, is disabled and busy, and a second press sends nothing more.
+    /// </summary>
+    [Test]
+    public void AddSaysItIsAddingAndSendsOnce()
+    {
+        TaskCompletionSource pending = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        int calls = 0;
+        A.CallTo(() => context.Api.ScheduleJob(TestData.SchedulerName, A<ScheduleJobRequest>._, A<CancellationToken>._))
+            .ReturnsLazily(() =>
+            {
+                calls++;
+                return new ValueTask(pending.Task);
+            });
+        IRenderedComponent<JobDetail> page = RenderJob();
+        Open(page);
+
+        page.Find("#add-trigger-name").Input("month-end");
+        page.Find("button.qz-add-trigger-save").Click();
+
+        page.WaitForAssertion(() =>
+        {
+            AngleSharp.Dom.IElement add = page.Find("button.qz-add-trigger-save");
+            add.TextContent.Trim().Should().Be("Adding…");
+            add.HasAttribute("disabled").Should().BeTrue();
+            add.GetAttribute("aria-busy").Should().Be("true");
+        });
+        page.Find("button.qz-add-trigger-save").Click();
+        calls.Should().Be(1, "a second press while the first is out sends nothing");
+
+        pending.SetResult();
+        page.WaitForAssertion(() => page.FindAll("[data-testid=add-trigger]").Should().BeEmpty());
+    }
+
     [Test]
     public void ANameIsNeededAndNothingIsPostedWithoutOne()
     {

@@ -3227,19 +3227,20 @@ body{
     min-width: 8rem;
 }
 
-/* Below 600 px each entry stacks inside its own block: the key and the value a row each, the type beside Remove, each
-   field under its label (#4412). The header row is for the wide table and goes. */
+/* Below 600 px each entry stacks inside its own block, the editor's and the read-only table's alike: the key and the
+   value a row each at the block's full width, the type beside Remove, each field under its label (#4412). The header
+   row is for the wide table and goes, and nothing scrolls sideways. */
 @media (max-width: 600px) {
-    .qz-job-data-edit,
-    .qz-job-data-edit tbody {
+    .qz-job-data-table,
+    .qz-job-data-table tbody {
         display: block;
     }
 
-    .qz-job-data-edit thead {
+    .qz-job-data-table thead {
         display: none;
     }
 
-    .qz-job-data-edit tr {
+    .qz-job-data-table tr {
         display: grid;
         grid-template-columns: minmax(0, 1fr) auto;
         grid-template-areas:
@@ -3251,14 +3252,15 @@ body{
         border-bottom: 1px solid var(--qz-color-border);
     }
 
-    .qz-job-data-edit td {
+    .qz-job-data-table td {
         display: block;
         padding: 0;
         border: 0;
         min-width: 0;
+        overflow-wrap: anywhere;
     }
 
-    .qz-job-data-edit td[data-label]::before {
+    .qz-job-data-table td[data-label]::before {
         content: attr(data-label);
         display: block;
         margin-bottom: var(--qz-space-xs);
@@ -3267,19 +3269,19 @@ body{
         font-weight: var(--qz-font-weight-medium);
     }
 
-    .qz-job-data-edit .qz-job-data-key-cell {
+    .qz-job-data-table .qz-job-data-key-cell {
         grid-area: key;
     }
 
-    .qz-job-data-edit .qz-job-data-value-cell {
+    .qz-job-data-table .qz-job-data-value-cell {
         grid-area: value;
     }
 
-    .qz-job-data-edit .qz-job-data-type-cell {
+    .qz-job-data-table .qz-job-data-type-cell {
         grid-area: type;
     }
 
-    .qz-job-data-edit .qz-job-data-remove-cell {
+    .qz-job-data-table .qz-job-data-remove-cell {
         grid-area: remove;
         align-self: end;
     }
@@ -3290,6 +3292,12 @@ body{
         width: 100%;
         min-width: 0;
     }
+}
+
+/* What Quartz wrote into a map itself: shown, and set apart from what can be edited. */
+.qz-job-data-internal td {
+    color: var(--qz-color-text-secondary);
+    overflow-wrap: anywhere;
 }
 
 /* ==========================================================================
@@ -3557,6 +3565,17 @@ body{
 
 .qz-add-trigger-intro {
     margin: 0 0 var(--qz-space-md);
+}
+
+/* The start's hint names a zone, which a 180 px column breaks over three lines: the field takes the row, and its
+   input keeps a date-and-time's width. */
+.qz-add-trigger-starts .qz-input {
+    max-width: 18rem;
+}
+
+/* A status line above the fields - nothing changed, a refusal - stands a gap above what follows it. */
+.qz-schedule-status {
+    margin: 0 0 var(--qz-space-sm);
 }
 
 /* The preview ends a gap above the buttons under it, rather than flush against them. */

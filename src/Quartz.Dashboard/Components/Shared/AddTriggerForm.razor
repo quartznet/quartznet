@@ -59,7 +59,7 @@
     <h3>Schedule</h3>
     @ScheduleInputs(kindSelectable: true)
     <div class="qz-live-filter-grid qz-schedule-fields">
-        <div class="qz-form-group">
+        <div class="qz-form-group qz-schedule-wide qz-add-trigger-starts">
             <label class="qz-form-label" for="add-trigger-starts">Starts</label>
             <input id="add-trigger-starts"
                    class="qz-input"
@@ -125,7 +125,11 @@
                      CalendarUnreadable="@_calendarUnreadable" />
 
     <div class="qz-actions qz-group-actions">
-        <button type="button" class="qz-button qz-button-primary qz-add-trigger-save" disabled="@(_saving || _readingCalendar)" @onclick="AddAsync">@(Source is null ? "Add trigger" : "Duplicate trigger")</button>
+        <button type="button"
+                class="qz-button qz-button-primary qz-add-trigger-save"
+                disabled="@(_saving || _readingCalendar)"
+                aria-busy="@(_saving ? "true" : null)"
+                @onclick="AddAsync">@SaveText</button>
         <button type="button" class="qz-button qz-add-trigger-cancel" @onclick="CancelAsync">Cancel</button>
     </div>
 </section>
@@ -198,6 +202,15 @@
     private const string InternalKeyPrefix = "QRTZ_";
 
     private string? NameError => _nameTouched || _takenKey is not null ? _nameError : null;
+
+    /// <summary>The submit button's words: what it does, and that it is doing it while the request is out.</summary>
+    private string SaveText => (Source is null, _saving) switch
+    {
+        (true, false) => "Add trigger",
+        (true, true) => "Adding…",
+        (false, false) => "Duplicate trigger",
+        (false, true) => "Duplicating…",
+    };
 
     /// <summary>
     /// The zone a start is read in: the schedule's own for a kind that has one, the dashboard's for a simple trigger.
