@@ -1,0 +1,335 @@
+@using Microsoft.Extensions.DependencyInjection
+@using Quartz
+@using Quartz.Dashboard.Services
+@using Quartz.Extensibility
+@inherits ScheduleFormComponent
+@implements IDisposable
+@inject IQuartzApiClient Api
+@inject SchedulerState Scheduler
+@inject ToastService Toasts
+@inject DashboardActionLog ActionLog
+@inject IServiceProvider Services
+
+@* Trigger Detail's reschedule, for every kind the dashboard can rebuild faithfully: the trigger cloned, its schedule
+   changed and nothing else, posted through RescheduleJob once the reader has confirmed what a reschedule resets
+   (#4412). A trigger of any other type is refused here, rather than replaced by some other trigger than the one on
+   screen. *@
+<section class="qz-section qz-schedule-editor" data-testid="schedule-editor">
+    <h2>Edit schedule</h2>
+    <DeclaredAtStartupNote Declared="@DeclaredAtStartup" />
+
+    @if (Form is null)
+    {
+        <p class="qz-muted" data-testid="schedule-editor-refused">
+            The dashboard cannot rebuild a @Trigger.GetType().Name faithfully, so it does not reschedule one: change its
+            schedule where it is declared.
+        </p>
+    }
+    else
+    {
+        @if (!string.IsNullOrWhiteSpace(_refusal))
+        {
+            <div class="qz-form-errors" role="alert" data-testid="schedule-editor-errors">
+                <ul>
+                    <li>@_refusal</li>
+                </ul>
+            </div>
+        }
+        else if (_nothingChanged)
+        {
+            <p class="qz-muted" data-testid="schedule-editor-unchanged">Nothing was changed, so nothing was saved.</p>
+        }
+
+        <p class="qz-muted qz-schedule-kind" data-testid="schedule-editor-kind">@ScheduleForm.Describe(Form.Kind) trigger</p>
+        @ScheduleInputs(kindSelectable: false)
+        <FieldError Id="@ErrorId(ScheduleField.Schedule)" Message="@ErrorOf(ScheduleField.Schedule)" TestId="schedule-error" />
+
+        @* The edit, once it is not the saved schedule: the saved one is Upcoming fires above. *@
+        @if (IsEdited)
+        {
+            <h3>Upcoming fires of the edit</h3>
+            <p class="qz-muted" data-testid="schedule-preview-unsaved">Of the edited schedule, which is not saved yet.</p>
+            <SchedulePreview Trigger="@_build?.Trigger"
+                             Calendar="@_calendar"
+                             CalendarName="@Trigger.CalendarName"
+                             CalendarUnreadable="@_calendarUnreadable" />
+        }
+
+        <div class="qz-actions qz-group-actions">
+            <button type="button" class="qz-button qz-button-primary qz-schedule-save" disabled="@(_saving || _readingCalendar)" @onclick="PromptSave">Save schedule</button>
+            <button type="button" class="qz-button qz-schedule-reset" @onclick="Reset">Reset</button>
+        </div>
+    }
+</section>
+
+@if (_confirming && _build?.Trigger is { } pending)
+{
+    <ModalDialog Class="qz-reschedule-dialog" LabelledBy="qz-reschedule-title" TestId="reschedule-dialog" OnCancel="CancelSave">
+        <h3 id="qz-reschedule-title">Reschedule @DisplayValueHelper.FormatKey(Trigger.Key.Group, Trigger.Key.Name)?</h3>
+        <p data-testid="reschedule-schedule">@(pending.DescribeSchedule() ?? ScheduleForm.Describe(Form!.Kind)), first at @Scheduler.FormatInSelectedTimeZone(pending.NextFireTimeUtc, "u").</p>
+        <ul class="qz-reschedule-effects" data-testid="reschedule-effects">
+            <li>The trigger is replaced: its previous fire time, its count of fires and a pending retry are reset.</li>
+            <li>A replaced trigger takes the state its group gives it, so a paused trigger can come back unpaused.</li>
+            @if (State == TriggerState.Paused)
+            {
+                <li data-testid="reschedule-keeps-pause">This one is paused: the dashboard pauses it again@(Pause?.Reason is { Length: > 0 } reason ? ", with its reason: " + reason : "").</li>
+            }
+        </ul>
+        <DeclaredAtStartupNote Declared="@DeclaredAtStartup" />
+        <div class="qz-confirm-actions">
+            <button type="button" class="qz-button qz-button-primary" data-testid="reschedule-confirm" @onclick="ConfirmAsync">Reschedule</button>
+            <button type="button" class="qz-button" data-testid="reschedule-cancel" @onclick="CancelSave">Cancel</button>
+        </div>
+    </ModalDialog>
+}
+
+@code {
+    private ScheduleForm? _original;
+    private ITrigger? _formFor;
+    private ScheduleBuild? _build;
+    private string? _refusal;
+    private bool _nothingChanged;
+    private bool _saving;
+    private bool _confirming;
+
+    /// <summary>Whether the next read of the trigger starts the form again, which a save asks for.</summary>
+    private bool _restart;
+
+    private ICalendar? _calendar;
+    private string? _calendarReadFor;
+    private string? _calendarUnreadable;
+    private bool _readingCalendar;
+
+    /// <summary>Cancelled when the editor goes with its page, which stops the calendar read in flight.</summary>
+    private readonly CancellationTokenSource _cancellation = new();
+
+    /// <summary>The trigger as the page last read it.</summary>
+    [Parameter]
+    [EditorRequired]
+    public ITrigger Trigger { get; set; } = null!;
+
+    /// <summary>Whether the next start stores the trigger again, over what this editor saves.</summary>
+    [Parameter]
+    public bool? DeclaredAtStartup { get; set; }
+
+    /// <summary>The trigger's state as the page read it: a paused trigger is paused again after the reschedule.</summary>
+    [Parameter]
+    public TriggerState State { get; set; }
+
+    /// <summary>What the trigger's pause recorded, which the pause it is given again keeps.</summary>
+    [Parameter]
+    public PauseInfo? Pause { get; set; }
+
+    /// <summary>Raised once a reschedule has been applied, so the page can read the trigger again.</summary>
+    [Parameter]
+    public EventCallback OnSaved { get; set; }
+
+    private TimeProvider Clock => Services.GetService<TimeProvider>() ?? TimeProvider.System;
+
+    private TriggerKeyDto TriggerKey => new(Trigger.Key.Group, Trigger.Key.Name);
+
+    private bool IsEdited => Form is not null && _original is not null && !Form.SameScheduleAs(_original);
+
+    internal override string IdPrefix => "trigger";
+
+    /// <remarks>
+    /// A new read of the trigger starts the form again, unless the reader is editing it: a refresh keeps an edit, as
+    /// the cron editor's always did. A save starts it again from what was saved.
+    /// </remarks>
+    protected override async Task OnParametersSetAsync()
+    {
+        if (!ReferenceEquals(_formFor, Trigger))
+        {
+            bool sameTrigger = _formFor is not null && _formFor.Key.Equals(Trigger.Key);
+            bool keep = sameTrigger && IsEdited && !_restart;
+            _formFor = Trigger;
+            _original = ScheduleForm.From(Trigger);
+            if (!keep)
+            {
+                Form = ScheduleForm.From(Trigger);
+                _refusal = null;
+                _nothingChanged = false;
+            }
+
+            _restart = false;
+        }
+
+        if (!string.Equals(_calendarReadFor, Trigger.CalendarName ?? string.Empty, StringComparison.Ordinal))
+        {
+            await ReadCalendarAsync(Trigger.CalendarName);
+        }
+
+        Rebuild();
+    }
+
+    /// <summary>
+    /// The calendar the trigger names, read once: the first fire a save posts is computed against it, as the
+    /// scheduler would. One that cannot be read leaves the preview without it, and says so.
+    /// </summary>
+    private async Task ReadCalendarAsync(string? calendarName)
+    {
+        _calendarReadFor = calendarName ?? string.Empty;
+        _calendar = null;
+        _calendarUnreadable = null;
+
+        string? schedulerName = Scheduler.ActiveSchedulerName;
+        if (string.IsNullOrWhiteSpace(calendarName) || string.IsNullOrWhiteSpace(schedulerName))
+        {
+            return;
+        }
+
+        _readingCalendar = true;
+        try
+        {
+            _calendar = await Api.GetCalendar(schedulerName, calendarName, _cancellation.Token);
+        }
+        catch (OperationCanceledException) when (_cancellation.IsCancellationRequested)
+        {
+            return;
+        }
+        catch (Exception ex)
+        {
+            _calendarUnreadable = ex.Message;
+        }
+        finally
+        {
+            _readingCalendar = false;
+        }
+    }
+
+    internal override void OnScheduleEdited()
+    {
+        _refusal = null;
+        _nothingChanged = false;
+        Rebuild();
+    }
+
+    /// <summary>The trigger a save would post, and what is wrong with the form, built again on every change.</summary>
+    private void Rebuild()
+    {
+        if (Form is null)
+        {
+            _build = null;
+            Errors = [];
+            return;
+        }
+
+        _build = Form.Apply(Trigger, _calendar, Clock);
+        Errors = [];
+        foreach (ScheduleFieldError error in _build.Errors)
+        {
+            Errors.TryAdd(error.Field, error.Message);
+        }
+    }
+
+    private void PromptSave()
+    {
+        if (Form is null || _saving)
+        {
+            return;
+        }
+
+        Rebuild();
+        _nothingChanged = !IsEdited;
+        if (_nothingChanged || _build?.Trigger is null)
+        {
+            return;
+        }
+
+        _confirming = true;
+    }
+
+    private void CancelSave()
+    {
+        _confirming = false;
+    }
+
+    /// <summary>
+    /// Reschedules, and pauses the trigger again when it was paused: the replacement takes the state its group gives
+    /// it, which would otherwise undo a pause the operator set.
+    /// </summary>
+    private async Task ConfirmAsync()
+    {
+        // Closed before the call rather than after it, so a second click sends nothing.
+        if (!_confirming || _build?.Trigger is not { } trigger)
+        {
+            return;
+        }
+
+        _confirming = false;
+        string? schedulerName = Scheduler.ActiveSchedulerName;
+        if (string.IsNullOrWhiteSpace(schedulerName))
+        {
+            return;
+        }
+
+        string target = DisplayValueHelper.FormatKey(TriggerKey.Group, TriggerKey.Name);
+        string change = (Trigger.DescribeSchedule() ?? "(no description)") + " → " + (trigger.DescribeSchedule() ?? "(no description)");
+        _saving = true;
+        try
+        {
+            await Api.RescheduleJob(schedulerName, TriggerKey, new RescheduleRequest(trigger));
+            ActionLog.Record(schedulerName, "RescheduleTrigger", target, succeeded: true, change);
+            Toasts.Success("Rescheduled trigger " + target + ".");
+
+            if (State == TriggerState.Paused)
+            {
+                await PauseAgainAsync(schedulerName, target);
+            }
+
+            _restart = true;
+            await OnSaved.InvokeAsync();
+        }
+        catch (Exception ex)
+        {
+            _refusal = ex.Message;
+            ActionLog.Failed(schedulerName, "RescheduleTrigger", target, ex, detail: change);
+            if (ex is OperationRefusedException)
+            {
+                Toasts.Error(ex.Message);
+            }
+        }
+        finally
+        {
+            _saving = false;
+        }
+    }
+
+    /// <summary>
+    /// The pause the trigger had, set again with its reason and who asked, once the reschedule has unpaused it. A group
+    /// pause keeps the replacement paused already, so nothing is set then.
+    /// </summary>
+    private async Task PauseAgainAsync(string schedulerName, string target)
+    {
+        try
+        {
+            if (await Api.GetTriggerState(schedulerName, TriggerKey) == TriggerState.Paused)
+            {
+                return;
+            }
+
+            PauseDetails details = new() { Reason = Pause?.Reason, RequestedBy = Pause?.RequestedBy };
+            bool paused = await Api.PauseTriggerWith(schedulerName, TriggerKey, details);
+            ActionLog.Record(schedulerName, "PauseTrigger", target, succeeded: paused, "kept across the reschedule");
+        }
+        catch (Exception ex)
+        {
+            ActionLog.Failed(schedulerName, "PauseTrigger", target, ex, detail: "kept across the reschedule");
+            Toasts.Error("Rescheduled trigger " + target + ", but it could not be paused again: " + ex.Message);
+        }
+    }
+
+    private void Reset()
+    {
+        Form = _formFor is null ? null : ScheduleForm.From(_formFor);
+        _refusal = null;
+        _nothingChanged = false;
+        Rebuild();
+    }
+
+    public void Dispose()
+    {
+        _cancellation.Cancel();
+        _cancellation.Dispose();
+    }
+}

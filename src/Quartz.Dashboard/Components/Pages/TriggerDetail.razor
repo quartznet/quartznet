@@ -222,29 +222,14 @@
         <h2>JobDataMap</h2>
         <JobDataMapEditor DataMap="@TriggerDataMap" ReadOnly="true" />
 
-        @if (CanReschedule && !string.IsNullOrWhiteSpace(_cronExpression))
+        @* Every kind's reschedule, which previews its edit beside its fields; read-only mode has none. *@
+        @if (CanReschedule)
         {
-            <section class="qz-section">
-                <h2>Edit cron schedule</h2>
-                <DeclaredAtStartupNote Declared="@_declaredAtStartup" />
-                <div class="qz-form-group">
-                    <label class="qz-form-label" for="trigger-cron-expression">Cron expression</label>
-                    <input id="trigger-cron-expression" class="qz-input qz-input-mono" @bind="_editedCronExpression" />
-                </div>
-                <div class="qz-actions qz-group-actions">
-                    <button type="button" class="qz-button qz-button-primary" @onclick="RescheduleCronAsync">Save schedule</button>
-                    <button type="button" class="qz-button" @onclick="ResetCronEditAsync">Reset</button>
-                </div>
-            </section>
-        }
-
-        @* The editor's expression, once it is not the saved one: the saved schedule is Upcoming fires above, and
-           read-only mode has no editor to preview. *@
-        @if (CanReschedule && !string.IsNullOrWhiteSpace(_cronExpression) && IsPreviewingAnEdit)
-        {
-            <h2>Upcoming cron fires</h2>
-            <p class="qz-muted" data-testid="cron-preview-unsaved">Of the edited expression, which is not saved yet.</p>
-            <CronNextFires Trigger="@_trigger" Expression="@_editedCronExpression" Count="5" />
+            <ScheduleEditor Trigger="@_trigger"
+                            DeclaredAtStartup="@_declaredAtStartup"
+                            State="@_triggerState"
+                            Pause="@_pause"
+                            OnSaved="OnRescheduledAsync" />
         }
     }
 </div>
@@ -280,8 +265,6 @@
     private bool _showPausePrompt;
     private bool _continuationParentExists;
     private bool _showUnscheduleConfirm;
-    private string? _cronExpression;
-    private string _editedCronExpression = string.Empty;
     private string _misfireName = string.Empty;
     private bool _editing;
 
@@ -370,12 +353,6 @@
     private TriggerKeyDto TriggerKey => new(Group, Name);
 
     private JobDataMap? TriggerDataMap => _trigger?.JobDataMap;
-
-    /// <summary>
-    /// Whether the editor holds an expression the trigger is not running with, which is the only time the
-    /// page previews one: until then the preview would repeat <em>Upcoming fires</em>.
-    /// </summary>
-    private bool IsPreviewingAnEdit => !string.Equals(_editedCronExpression.Trim(), _cronExpression, StringComparison.Ordinal);
 
     /// <remarks>
     /// Subscribes only: <see cref="OnParametersSetAsync" /> reads, and it runs on the first render too. Reading
@@ -486,18 +463,10 @@
                 },
                 cancellationToken);
 
-            // A refresh keeps an expression the reader is editing; every other read starts the editor again from
-            // the trigger's own.
-            bool keepEdit = _refreshing && IsPreviewingAnEdit;
+            // The schedule editor keeps an edit the reader is making across a refresh, and starts again otherwise.
             _trigger = trigger;
             _triggerState = triggerState;
             _pause = pause;
-            _cronExpression = (trigger as ICronTrigger)?.CronExpressionString;
-            if (!keepEdit)
-            {
-                _editedCronExpression = _cronExpression ?? string.Empty;
-            }
-
             _misfireName = TriggerDetailsForm.MisfireNameOf(trigger);
             _declaredAtStartup = declaredAtStartup;
             _continuationParentExists = continuationParentExists;
@@ -743,49 +712,10 @@
             target: DisplayValueHelper.FormatKey(Group, Name));
     }
 
-    private async Task RescheduleCronAsync()
+    /// <summary>The schedule editor has rescheduled the trigger, and paused it again where it was paused.</summary>
+    private async Task OnRescheduledAsync()
     {
-        string? schedulerName = Scheduler.ActiveSchedulerName;
-        if (!CanReschedule || string.IsNullOrWhiteSpace(schedulerName))
-        {
-            return;
-        }
-
-        string cronExpression = _editedCronExpression.Trim();
-        if (string.IsNullOrWhiteSpace(cronExpression))
-        {
-            Toasts.Error("Cron expression is required.");
-            return;
-        }
-
-        ITrigger? newTrigger;
-        try
-        {
-            if (_trigger is null || !TriggerPayloadBuilder.TryWithCronExpression(_trigger, cronExpression, out newTrigger))
-            {
-                Toasts.Error("This trigger cannot be rescheduled from the dashboard.");
-                return;
-            }
-        }
-        catch (FormatException ex)
-        {
-            // Said the way the preview says it. Thrown out of a click handler, it would end the circuit.
-            Toasts.Error("Invalid cron expression: " + ex.Message);
-            return;
-        }
-
-        RescheduleRequest request = new(newTrigger);
-        _ = await ExecuteMutatingActionAsync(
-            () => Api.RescheduleJob(schedulerName, TriggerKey, request),
-            "Rescheduled trigger " + DisplayValueHelper.FormatKey(Group, Name) + ".",
-            actionName: "RescheduleTrigger",
-            target: DisplayValueHelper.FormatKey(Group, Name));
-    }
-
-    private Task ResetCronEditAsync()
-    {
-        _editedCronExpression = _cronExpression ?? string.Empty;
-        return Task.CompletedTask;
+        await LoadDataAsync();
     }
 
     private static string DisplayPreferredNode(PreferredNode preferredNode)
@@ -887,34 +817,6 @@
     {
         _showUnscheduleConfirm = false;
         return Task.CompletedTask;
-    }
-
-    private async Task<bool> ExecuteMutatingActionAsync(
-        Func<ValueTask> operation,
-        string successMessage,
-        string actionName,
-        string target)
-    {
-        string? schedulerName = Scheduler.ActiveSchedulerName;
-        if (IsReadOnly || string.IsNullOrWhiteSpace(schedulerName))
-        {
-            return false;
-        }
-
-        try
-        {
-            await operation();
-            ActionLog.Record(schedulerName, actionName, target, succeeded: true);
-            Toasts.Success(successMessage);
-            await LoadDataAsync();
-            return true;
-        }
-        catch (Exception ex)
-        {
-            ActionLog.Failed(schedulerName, actionName, target, ex);
-            Toasts.Error(ex.Message);
-            return false;
-        }
     }
 
     private async Task<bool> ExecuteMutatingActionAsync(

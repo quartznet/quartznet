@@ -110,29 +110,36 @@ public class TriggerDetailPageTest
 
         page.Find("#trigger-cron-expression").GetAttribute("value").Should().Be("0/25 * * * * ?",
             "the editor starts from the schedule the trigger is running with");
-        page.Markup.Should().NotContain("Upcoming cron fires",
+        page.FindAll("[data-testid=schedule-preview-unsaved]").Should().BeEmpty(
             "the preview is of an edit, and until there is one the saved schedule's fires are Upcoming fires");
     }
 
     [Test]
-    public void SavingACronScheduleClonesTheTriggerAndClearsItsNextFireTime()
+    public void SavingACronScheduleClonesTheTriggerAndComputesItsFirstFireFromNow()
     {
-        GivenTrigger(CronTrigger("0/25 * * * * ?"));
+        // Started before the pages' clock: a trigger built without a start starts when it is built, on the real one.
+        ITrigger trigger = CronTrigger("0/25 * * * * ?");
+        ((Quartz.Extensibility.IMutableTrigger) trigger).StartTimeUtc = context.Clock.GetUtcNow().AddDays(-30);
+        GivenTrigger(trigger);
+        RescheduleRequest? sent = null;
+        A.CallTo(() => context.Api.RescheduleJob(TestData.SchedulerName, new TriggerKeyDto(TriggerGroup, TriggerName), A<RescheduleRequest>._, A<CancellationToken>._))
+            .Invokes((string _, TriggerKeyDto _, RescheduleRequest request, CancellationToken _) => sent = request);
         IRenderedComponent<TriggerDetail> page = Render();
 
-        page.Find("#trigger-cron-expression").Change("0 0 12 * * ?");
-        page.Find("button.qz-button-primary").Click();
+        page.Find("#trigger-cron-expression").Input("0 0 12 * * ?");
+        page.Find("button.qz-schedule-save").Click();
+        page.WaitForAssertion(() => page.Find("[data-testid=reschedule-dialog]"));
+        page.Find("[data-testid=reschedule-confirm]").Click();
 
-        A.CallTo(() => context.Api.RescheduleJob(
-                TestData.SchedulerName,
-                new TriggerKeyDto(TriggerGroup, TriggerName),
-                A<RescheduleRequest>.That.Matches(request =>
-                    ((ICronTrigger) request.NewTrigger).CronExpressionString == "0 0 12 * * ?"
-                    && request.NewTrigger.Key.Name == TriggerName
-                    && request.NewTrigger.CalendarName == "SomeCalendar"
-                    && request.NewTrigger.NextFireTimeUtc == null),
-                A<CancellationToken>._))
-            .MustHaveHappened();
+        page.WaitForAssertion(() => sent.Should().NotBeNull());
+        ICronTrigger cron = (ICronTrigger) sent!.NewTrigger;
+        cron.CronExpressionString.Should().Be("0 0 12 * * ?");
+        cron.Key.Name.Should().Be(TriggerName);
+        cron.CalendarName.Should().Be("SomeCalendar");
+        cron.PreviousFireTimeUtc.Should().BeNull("a reschedule replaces the trigger, as the dialog says");
+        cron.NextFireTimeUtc.Should().Be(
+            new CronExpression("0 0 12 * * ?", cron.TimeZone).GetNextValidTimeAfter(context.Clock.GetUtcNow()),
+            "the first fire is the edited expression's first after now, on the dashboard's clock");
     }
 
     [Test]
@@ -147,14 +154,13 @@ public class TriggerDetailPageTest
         GivenTrigger(foreignCronTrigger);
 
         IRenderedComponent<TriggerDetail> page = Render();
-        page.Find("#trigger-cron-expression").Change("0 0 12 * * ?");
-        page.Find("button.qz-button-primary").Click();
 
+        page.WaitForAssertion(() => page.Find("[data-testid=schedule-editor-refused]").TextContent.Should().Contain(
+            "does not reschedule one", "refusing out loud, before anything is typed, beats rescheduling something the reader did not ask for"));
+        page.FindAll("#trigger-cron-expression").Should().BeEmpty();
+        page.FindAll("button.qz-schedule-save").Should().BeEmpty();
         A.CallTo(() => context.Api.RescheduleJob(A<string>._, A<TriggerKeyDto>._, A<RescheduleRequest>._, A<CancellationToken>._))
             .MustNotHaveHappened();
-        context.Toasts.Messages.Should().ContainSingle()
-            .Which.Message.Should().Be("This trigger cannot be rescheduled from the dashboard.",
-                "refusing out loud beats rescheduling something the reader did not ask for");
     }
 
     [Test]
@@ -163,13 +169,19 @@ public class TriggerDetailPageTest
         GivenTrigger(CronTrigger("0/25 * * * * ?"));
         IRenderedComponent<TriggerDetail> page = Render();
 
-        page.Find("#trigger-cron-expression").Change("   ");
-        page.Find("button.qz-button-primary").Click();
+        page.Find("#trigger-cron-expression").Input("   ");
+        page.Find("button.qz-schedule-save").Click();
 
+        page.WaitForAssertion(() =>
+        {
+            AngleSharp.Dom.IElement error = page.Find("[data-testid=schedule-cron-error]");
+            error.TextContent.Should().Be("A cron expression is needed.", "said beside the field, as the calendar editor says its own");
+            page.Find("#trigger-cron-expression").GetAttribute("aria-describedby").Should().Be(error.Id);
+            page.Find("#trigger-cron-expression").GetAttribute("aria-invalid").Should().Be("true");
+        });
+        page.FindAll("[data-testid=reschedule-dialog]").Should().BeEmpty();
         A.CallTo(() => context.Api.RescheduleJob(A<string>._, A<TriggerKeyDto>._, A<RescheduleRequest>._, A<CancellationToken>._))
             .MustNotHaveHappened();
-        context.Toasts.Messages.Should().ContainSingle()
-            .Which.Message.Should().Be("Cron expression is required.");
     }
 
     [Test]
@@ -233,16 +245,201 @@ public class TriggerDetailPageTest
     }
 
     [Test]
-    public void ATriggerWithNoCronExpressionIsNotOfferedACronEditor()
+    public void ASimpleTriggerIsOfferedItsOwnScheduleEditor()
     {
         GivenTrigger(TestData.SimpleTrigger);
 
         IRenderedComponent<TriggerDetail> page = Render();
 
-        page.Markup.Should().NotContain("Edit cron schedule",
-            "there is no cron expression to edit, and a simple trigger's interval is not one");
+        page.FindAll("#trigger-cron-expression").Should().BeEmpty("a simple trigger's interval is not a cron expression");
+        page.Find("[data-testid=schedule-editor-kind]").TextContent.Should().Be("Simple trigger");
+        page.FindAll("#trigger-simple-interval").Should().ContainSingle();
         page.Markup.Should().Contain("Every 10377059999 milliseconds, 1001 times",
             "the schedule is said in the trigger's own terms instead: an interval of 120 days and change, to the millisecond");
+    }
+
+    /// <summary>
+    /// Every kind the dashboard can rebuild is rescheduled in its own terms (#4412).
+    /// </summary>
+    [TestCase("Cron", "#trigger-cron-expression")]
+    [TestCase("Simple", "#trigger-simple-interval")]
+    [TestCase("CalendarInterval", "#trigger-calendar-interval")]
+    [TestCase("DailyTimeInterval", "#trigger-daily-start")]
+    [TestCase("Recurrence", "#trigger-recurrence-rule")]
+    public void EveryKindIsOfferedTheFieldsOfItsOwnSchedule(string kind, string field)
+    {
+        GivenTrigger(TriggerOfKind(kind));
+
+        IRenderedComponent<TriggerDetail> page = Render();
+
+        page.WaitForAssertion(() => page.FindAll(field).Should().ContainSingle());
+        page.FindAll("#trigger-time-zone").Should().HaveCount(kind == "Simple" ? 0 : 1, "every kind but simple is read in a time zone");
+        page.FindAll("[data-testid=schedule-editor-refused]").Should().BeEmpty();
+    }
+
+    [Test]
+    public void AnEditIsPreviewedInWordsBeforeItIsSaved()
+    {
+        GivenTrigger(TriggerOfKind("Simple"));
+        IRenderedComponent<TriggerDetail> page = Render();
+
+        page.Find("#trigger-simple-interval").Input("30");
+
+        page.WaitForAssertion(() =>
+        {
+            page.Find("[data-testid=schedule-preview-unsaved]");
+            page.Find("[data-testid=schedule-preview-description]").TextContent.Should().Be("Every 30 minutes",
+                "the edit is said in words, as the saved schedule is above");
+            page.FindAll("[data-testid=schedule-preview-fires] li").Should().HaveCount(5);
+        });
+    }
+
+    [Test]
+    public void ARescheduleSaysWhatItResetsAndPostsNothingUntilConfirmed()
+    {
+        GivenTrigger(TriggerOfKind("Simple"));
+        IRenderedComponent<TriggerDetail> page = Render();
+        page.Find("#trigger-simple-interval").Input("30");
+
+        page.Find("button.qz-schedule-save").Click();
+
+        page.WaitForAssertion(() =>
+        {
+            string effects = page.Find("[data-testid=reschedule-effects]").TextContent;
+            effects.Should().Contain("its previous fire time, its count of fires and a pending retry are reset");
+            effects.Should().Contain("a paused trigger can come back unpaused");
+        });
+        page.FindAll("[data-testid=reschedule-keeps-pause]").Should().BeEmpty("this trigger is not paused");
+        A.CallTo(() => context.Api.RescheduleJob(A<string>._, A<TriggerKeyDto>._, A<RescheduleRequest>._, A<CancellationToken>._))
+            .MustNotHaveHappened();
+
+        page.Find("[data-testid=reschedule-cancel]").Click();
+
+        page.WaitForAssertion(() => page.FindAll("[data-testid=reschedule-dialog]").Should().BeEmpty());
+        A.CallTo(() => context.Api.RescheduleJob(A<string>._, A<TriggerKeyDto>._, A<RescheduleRequest>._, A<CancellationToken>._))
+            .MustNotHaveHappened();
+    }
+
+    [TestCase("Cron")]
+    [TestCase("Simple")]
+    [TestCase("CalendarInterval")]
+    [TestCase("DailyTimeInterval")]
+    [TestCase("Recurrence")]
+    public void EachKindIsRescheduledAsItself(string kind)
+    {
+        ITrigger trigger = TriggerOfKind(kind);
+        GivenTrigger(trigger);
+        RescheduleRequest? sent = null;
+        A.CallTo(() => context.Api.RescheduleJob(TestData.SchedulerName, new TriggerKeyDto(TriggerGroup, TriggerName), A<RescheduleRequest>._, A<CancellationToken>._))
+            .Invokes((string _, TriggerKeyDto _, RescheduleRequest request, CancellationToken _) => sent = request);
+        IRenderedComponent<TriggerDetail> page = Render();
+
+        switch (kind)
+        {
+            case "Cron":
+                page.Find("#trigger-cron-expression").Input("0 0 12 * * ?");
+                break;
+            case "Simple":
+                page.Find("#trigger-simple-interval").Input("30");
+                break;
+            case "CalendarInterval":
+                page.Find("#trigger-calendar-interval").Input("2");
+                break;
+            case "DailyTimeInterval":
+                page.Find("#trigger-daily-end").Change("18:00:00");
+                break;
+            default:
+                page.Find("#trigger-recurrence-rule").Input("FREQ=WEEKLY;BYDAY=TU;BYHOUR=9;BYMINUTE=0;BYSECOND=0");
+                break;
+        }
+
+        page.Find("button.qz-schedule-save").Click();
+        page.WaitForAssertion(() => page.Find("[data-testid=reschedule-confirm]"));
+        page.Find("[data-testid=reschedule-confirm]").Click();
+
+        page.WaitForAssertion(() => sent.Should().NotBeNull());
+        sent!.NewTrigger.Should().BeOfType(trigger.GetType());
+        sent.NewTrigger.Key.Should().Be(trigger.Key);
+        sent.NewTrigger.CalendarName.Should().BeNull();
+        sent.NewTrigger.NextFireTimeUtc.Should().BeOnOrAfter(context.Clock.GetUtcNow(), "a first fire behind now would be stored as a misfire");
+        ((Quartz.Impl.Triggers.TriggerBase) sent.NewTrigger).HasSameScheduleAs((Quartz.Impl.Triggers.TriggerBase) trigger).Should().BeFalse();
+        context.ActionLog.GetLatest(10).Should().Contain(entry => entry.Action == "RescheduleTrigger" && entry.Succeeded);
+    }
+
+    [Test]
+    public void APausedTriggerIsPausedAgainWithItsReasonAfterTheReschedule()
+    {
+        GivenTrigger(TriggerOfKind("Simple"));
+        bool rescheduled = false;
+        A.CallTo(() => context.Api.GetTriggerState(TestData.SchedulerName, A<TriggerKeyDto>._, A<CancellationToken>._))
+            .ReturnsLazily(() => rescheduled ? TriggerState.Normal : TriggerState.Paused);
+        A.CallTo(() => context.Api.GetTriggerPause(TestData.SchedulerName, A<TriggerKeyDto>._, A<CancellationToken>._))
+            .Returns(new PauseInfo("vendor outage", "alice", new DateTimeOffset(2026, 10, 5, 8, 0, 0, TimeSpan.Zero)));
+        A.CallTo(() => context.Api.RescheduleJob(TestData.SchedulerName, A<TriggerKeyDto>._, A<RescheduleRequest>._, A<CancellationToken>._))
+            .Invokes(() => rescheduled = true);
+        IRenderedComponent<TriggerDetail> page = Render();
+
+        page.Find("#trigger-simple-interval").Input("30");
+        page.Find("button.qz-schedule-save").Click();
+
+        page.WaitForAssertion(() => page.Find("[data-testid=reschedule-keeps-pause]").TextContent.Should().Contain("vendor outage"));
+        page.Find("[data-testid=reschedule-confirm]").Click();
+
+        // The replacement took the state its group gives it, Normal, so the pause the operator set is set again.
+        page.WaitForAssertion(() => A.CallTo(() => context.Api.PauseTriggerWith(
+                TestData.SchedulerName,
+                new TriggerKeyDto(TriggerGroup, TriggerName),
+                A<PauseDetails>.That.Matches(details => details.Reason == "vendor outage" && details.RequestedBy == "alice"),
+                A<CancellationToken>._))
+            .MustHaveHappenedOnceExactly());
+    }
+
+    [Test]
+    public void AReplacementTheGroupKeepsPausedIsNotPausedAgain()
+    {
+        GivenTrigger(TriggerOfKind("Simple"));
+        A.CallTo(() => context.Api.GetTriggerState(TestData.SchedulerName, A<TriggerKeyDto>._, A<CancellationToken>._))
+            .Returns(TriggerState.Paused);
+        IRenderedComponent<TriggerDetail> page = Render();
+
+        page.Find("#trigger-simple-interval").Input("30");
+        page.Find("button.qz-schedule-save").Click();
+        page.WaitForAssertion(() => page.Find("[data-testid=reschedule-confirm]"));
+        page.Find("[data-testid=reschedule-confirm]").Click();
+
+        page.WaitForAssertion(() => A.CallTo(() => context.Api.RescheduleJob(A<string>._, A<TriggerKeyDto>._, A<RescheduleRequest>._, A<CancellationToken>._))
+            .MustHaveHappenedOnceExactly());
+        A.CallTo(() => context.Api.PauseTriggerWith(A<string>._, A<TriggerKeyDto>._, A<PauseDetails>._, A<CancellationToken>._))
+            .MustNotHaveHappened();
+    }
+
+    [Test]
+    public void SavingAnUnchangedScheduleSendsNothing()
+    {
+        GivenTrigger(TriggerOfKind("CalendarInterval"));
+        IRenderedComponent<TriggerDetail> page = Render();
+
+        page.Find("button.qz-schedule-save").Click();
+
+        page.WaitForAssertion(() => page.Find("[data-testid=schedule-editor-unchanged]"));
+        page.FindAll("[data-testid=reschedule-dialog]").Should().BeEmpty();
+    }
+
+    [Test]
+    public void ARefusalIsShownInTheEditor()
+    {
+        GivenTrigger(TriggerOfKind("Recurrence"));
+        A.CallTo(() => context.Api.RescheduleJob(A<string>._, A<TriggerKeyDto>._, A<RescheduleRequest>._, A<CancellationToken>._))
+            .Throws(new SchedulerException("Calendar not found: holidays"));
+        IRenderedComponent<TriggerDetail> page = Render();
+
+        page.Find("#trigger-recurrence-rule").Input("FREQ=DAILY;BYHOUR=10;BYMINUTE=0;BYSECOND=0");
+        page.Find("button.qz-schedule-save").Click();
+        page.WaitForAssertion(() => page.Find("[data-testid=reschedule-confirm]"));
+        page.Find("[data-testid=reschedule-confirm]").Click();
+
+        page.WaitForAssertion(() => page.Find("[data-testid=schedule-editor-errors]").TextContent.Should().Contain("Calendar not found: holidays"));
+        context.ActionLog.GetLatest(10).Should().Contain(entry => entry.Action == "RescheduleTrigger" && !entry.Succeeded);
     }
 
     /// <summary>
@@ -317,11 +514,11 @@ public class TriggerDetailPageTest
         page.HasButton("Pause").Should().BeFalse();
         page.HasButton("Resume").Should().BeFalse();
         page.HasButton("Unschedule").Should().BeFalse();
-        page.Markup.Should().NotContain("Edit cron schedule",
+        page.FindAll("[data-testid=schedule-editor]").Should().BeEmpty(
             "a read-only dashboard shows the schedule but does not offer to change it");
         page.Markup.Should().Contain("Upcoming fires",
             "reading the schedule is exactly what a read-only dashboard is for");
-        page.Markup.Should().NotContain("Upcoming cron fires", "with no editor there is no edit to preview");
+        page.FindAll("[data-testid=schedule-preview]").Should().BeEmpty("with no editor there is no edit to preview");
     }
 
     [Test]
@@ -673,6 +870,32 @@ public class TriggerDetailPageTest
             .WithCalendarName("SomeCalendar")
             .WithCronSchedule(cronExpression)
             .Build();
+    }
+
+    /// <summary>
+    /// A trigger of each kind under this page's key, started a year before the pages' clock, at 09:00 UTC, with no
+    /// calendar.
+    /// </summary>
+    private static ITrigger TriggerOfKind(string kind)
+    {
+        TriggerBuilder<IJob> builder = TriggerBuilder.Create()
+            .WithIdentity(TriggerName, TriggerGroup)
+            .ForJob("CronJobKey", "CronJobGroup")
+            .StartAt(new DateTimeOffset(2025, 10, 5, 9, 0, 0, TimeSpan.Zero));
+
+        return (kind switch
+        {
+            "Cron" => builder.WithCronSchedule("0 0 9 * * ?", x => x.InTimeZone(TimeZoneInfo.Utc)),
+            "Simple" => builder.WithSimpleSchedule(x => x.WithInterval(TimeSpan.FromMinutes(15)).RepeatForever()),
+            "CalendarInterval" => builder.WithCalendarIntervalSchedule(x => x.WithInterval(1, IntervalUnit.Day).InTimeZone(TimeZoneInfo.Utc)),
+            "DailyTimeInterval" => builder.WithDailyTimeIntervalSchedule(x => x
+                .OnMondayThroughFriday()
+                .StartingDailyAt(new TimeOnly(9, 0))
+                .EndingDailyAt(new TimeOnly(17, 0))
+                .WithInterval(1, IntervalUnit.Hour)
+                .InTimeZone(TimeZoneInfo.Utc)),
+            _ => builder.WithRecurrenceSchedule("FREQ=DAILY;BYHOUR=9;BYMINUTE=0;BYSECOND=0", x => x.InTimeZone(TimeZoneInfo.Utc)),
+        }).Build();
     }
 
     private void GivenDeclaredAtStartup(bool? declared)

@@ -445,6 +445,76 @@ public sealed class QuartzApiClientContractTest
     /// the <c>…/keys/pause</c>, <c>…/keys/resume</c> and <c>…/unschedule</c> key-set routes, so a page
     /// fronting a remote scheduler has nothing to disable.
     /// </remarks>
+    /// <summary>
+    /// The schedule editor's trigger of every kind, rescheduled through the client, is stored as the editor built it,
+    /// whichever process the scheduler runs in (#4412). Over HTTP and through the agent it travels as JSON, so every
+    /// kind's schedule has to survive the wire.
+    /// </summary>
+    [TestCase("Cron")]
+    [TestCase("Simple")]
+    [TestCase("CalendarInterval")]
+    [TestCase("DailyTimeInterval")]
+    [TestCase("Recurrence")]
+    public async Task EveryKindTheScheduleEditorBuildsIsRescheduledThroughTheClient(string kindName)
+    {
+        ScheduleKind kind = Enum.Parse<ScheduleKind>(kindName);
+        JobKey jobKey = new("rescheduled", "every-kind");
+        TriggerKey triggerKey = new("t-" + kindName, "every-kind");
+        TriggerKeyDto triggerKeyDto = new(triggerKey.Group, triggerKey.Name);
+        await scheduler.AddJob(JobBuilder.Create<DummyJob>().WithIdentity(jobKey).StoreDurably().Build(), new AddJobOptions { Replace = true });
+
+        IOperableTrigger template = ScheduleForm.NewTrigger(kind);
+        template.Key = triggerKey;
+        template.JobKey = jobKey;
+        template.StartTimeUtc = DateTimeOffset.UtcNow.AddDays(-30);
+        template.PreferredNode = PreferredNode.For("node-a");
+        await scheduler.ScheduleJob(ScheduleForm.ForNew(kind, TimeZoneInfo.Utc.Id).Apply(template, null, TimeProvider.System).Trigger!);
+
+        ITrigger read = await client.GetTrigger(key, triggerKeyDto);
+        ScheduleForm form = ScheduleForm.From(read)!;
+        switch (kind)
+        {
+            case ScheduleKind.Cron:
+                form.CronExpression = "0 30 6 ? * MON-FRI";
+                break;
+            case ScheduleKind.Simple:
+                form.SimpleInterval = "45";
+                form.RepeatForever = false;
+                form.RepeatCount = "12";
+                break;
+            case ScheduleKind.CalendarInterval:
+                form.CalendarInterval = "3";
+                form.CalendarUnit = IntervalUnit.Week;
+                break;
+            case ScheduleKind.DailyTimeInterval:
+                form.DailyStart = "07:30:00";
+                form.DailyEnd = "19:00:00";
+                form.DailyDays.Remove(DayOfWeek.Friday);
+                form.DailyInterval = "20";
+                form.DailyUnit = IntervalUnit.Minute;
+                break;
+            default:
+                form.RecurrenceRule = "FREQ=MONTHLY;BYMONTHDAY=-1;BYHOUR=23;BYMINUTE=0;BYSECOND=0";
+                break;
+        }
+
+        ScheduleBuild build = form.Apply(read, null, TimeProvider.System);
+        build.Errors.Should().BeEmpty();
+
+        await client.RescheduleJob(key, triggerKeyDto, new RescheduleRequest(build.Trigger!));
+
+        ITrigger? stored = await scheduler.GetTrigger(triggerKey);
+        stored.Should().BeOfType(read.GetType(), "the kind is what it was");
+        ScheduleForm.From(stored!)!.SameScheduleAs(form).Should().BeTrue("the scheduler holds the schedule the editor built");
+        stored!.PreferredNode.Node.Should().Be("node-a", "a reschedule must not unpin the trigger");
+        stored.CalendarName.Should().BeNull();
+        stored.JobKey.Should().Be(jobKey);
+        stored.NextFireTimeUtc.Should().NotBeNull().And.BeOnOrAfter(build.Trigger!.NextFireTimeUtc!.Value.AddSeconds(-1),
+            "the first fire the editor computed is the one stored, not one from the trigger's start a month ago");
+
+        await scheduler.DeleteJob(jobKey);
+    }
+
     [Test]
     public async Task ATriggerIsEditedFilteredAndActedOnAsASetThroughTheClient()
     {

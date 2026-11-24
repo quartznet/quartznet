@@ -3200,15 +3200,6 @@ body{
     text-decoration: underline;
 }
 
-.qz-cron-next-fires {
-    margin-top: var(--qz-space-sm);
-}
-
-.qz-cron-next-fires .qz-list li {
-    justify-content: space-between;
-    flex-wrap: wrap;
-}
-
 .qz-job-data-map-editor {
     display: flex;
     flex-direction: column;
@@ -3451,6 +3442,87 @@ body{
     background-color: var(--qz-color-warning-bg);
     color: var(--qz-color-text);
     font-size: var(--qz-font-size-sm);
+}
+
+/* The schedule editors (#4412): Trigger Detail's reschedule and the Add trigger form, framed as Edit details is. */
+.qz-schedule-editor,
+.qz-add-trigger {
+    border: 1px solid var(--qz-color-border);
+    border-radius: var(--qz-radius-md);
+    padding: var(--qz-space-md);
+}
+
+.qz-schedule-kind {
+    margin: 0 0 var(--qz-space-sm);
+}
+
+/* An expression, a rule, the days and the checkbox pairs take the whole row: a grid cell would cut them off. */
+.qz-schedule-fields .qz-schedule-wide {
+    grid-column: 1 / -1;
+}
+
+/* Two checkboxes of one setting, side by side while they fit. */
+.qz-schedule-checks {
+    display: flex;
+    flex-direction: row;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--qz-space-sm) var(--qz-space-md);
+}
+
+/* A number and its unit side by side, the number taking what the unit leaves. */
+.qz-schedule-interval {
+    display: flex;
+    gap: var(--qz-space-xs);
+    min-width: 0;
+}
+
+.qz-schedule-interval .qz-input {
+    flex: 1 1 4rem;
+    min-width: 0;
+}
+
+.qz-schedule-interval .qz-select {
+    flex: 0 1 auto;
+}
+
+.qz-schedule-preview .qz-list li {
+    justify-content: flex-start;
+    flex-wrap: wrap;
+    gap: var(--qz-space-xs);
+}
+
+.qz-schedule-preview-description {
+    margin: 0 0 var(--qz-space-sm);
+    font-weight: var(--qz-font-weight-medium);
+}
+
+/* What a reschedule resets, as a list the dialog's reader can take in at a glance. */
+.qz-reschedule-effects {
+    margin: var(--qz-space-sm) 0 var(--qz-space-md);
+    padding-left: var(--qz-space-lg);
+    color: var(--qz-color-text-secondary);
+    font-size: var(--qz-font-size-sm);
+}
+
+.qz-reschedule-effects li + li {
+    margin-top: var(--qz-space-xs);
+}
+
+.qz-confirm-dialog.qz-reschedule-dialog {
+    max-width: 480px;
+}
+
+/* On a phone every field takes the row, and the grid's 180px minimum no longer pushes past a 320px screen. */
+@media (max-width: 480px) {
+    .qz-schedule-fields {
+        grid-template-columns: minmax(0, 1fr);
+    }
+
+    .qz-schedule-editor,
+    .qz-add-trigger {
+        padding: var(--qz-space-sm);
+    }
 }
 
 .qz-col-select {
