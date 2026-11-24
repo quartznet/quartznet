@@ -107,7 +107,7 @@
 
     @* Where focus goes when the control that had it is gone: the result's Dismiss removes itself, and focus must not
        fall to the page's body. *@
-    <section class="qz-agenda-results" tabindex="-1" aria-label="Fires" data-testid="agenda-results" @ref="_results">
+    <section class="qz-focus-region" tabindex="-1" aria-label="Fires" data-testid="agenda-results" @ref="_results">
     @if (_invalid)
     {
         @* The inputs say a window the page refused, so what was listed for the last one would read as theirs. *@
@@ -359,8 +359,10 @@
     {
         if (_focusResults)
         {
+            // The reader stays where they pressed the control: focus would otherwise scroll a region taller than the
+            // pane to its top.
             _focusResults = false;
-            await _results.FocusAsync();
+            await _results.FocusAsync(preventScroll: true);
         }
     }
 

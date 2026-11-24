@@ -4383,14 +4383,22 @@ body{
     }
 }
 
-/* Focus comes here when the control that had it removed itself; the ring says where it went. */
-.qz-agenda-results:focus {
+/* A listing focus comes to when the control that had it removed itself, on the Agenda and the Triggers listing; the
+   ring says where it went. */
+.qz-focus-region:focus {
     outline: none;
 }
 
-.qz-agenda-results:focus-visible {
+.qz-focus-region:focus-visible {
     outline: 2px solid var(--qz-color-primary);
     outline-offset: 4px;
+}
+
+/* Lays the Triggers listing's groups and pagination out as they were as children of the page. */
+.qz-triggers-results {
+    display: flex;
+    flex-direction: column;
+    gap: var(--qz-space-md);
 }
 
 /* A key is never cut short: it wraps between its words, and as a link it is underlined, not told apart by colour. */
