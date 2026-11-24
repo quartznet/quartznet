@@ -136,8 +136,9 @@ public sealed class QuartzMcpOptions
     /// <remarks>
     /// An agent in a loop can call <c>trigger_job</c> a thousand times, and a person cannot. The window slides,
     /// a preview does not count, a read never counts, and each caller has a window of their own, so one agent
-    /// cannot starve another. The refusal says when to try again. The count is this process's: a host with
-    /// several instances allows this many per instance.
+    /// cannot starve another. The refusal says when to try again. A change a policy refused counts too: past the
+    /// limit it is still refused, and no longer entered in the Action Log or logged, so a looping caller cannot
+    /// flood either. The count is this process's: a host with several instances allows this many per instance.
     /// </remarks>
     public int MaxChangesPerMinute { get; set; } = DefaultMaxChangesPerMinute;
 }

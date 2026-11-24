@@ -105,13 +105,30 @@ internal sealed class McpToolInvoker
 
         if (await access.Refusal(caller, services, tool, key, cancellationToken).ConfigureAwait(false) is { } refusal)
         {
-            records.Refused(caller, tool, key.Key, subject, refusal);
+            // A refused change counts against the caller's minute, so a caller looping on one cannot fill the Action
+            // Log or the log: past the limit it is still refused, and no longer recorded, and the limit is logged once.
+            if (tool.Changes && !rateLimiter.TryAcquire(caller.Digest, out int refusedRetryAfter, out bool reportRefused))
+            {
+                if (reportRefused)
+                {
+                    records.RateLimited(caller, tool, key.Key, refusedRetryAfter);
+                }
+            }
+            else
+            {
+                records.Refused(caller, tool, key.Key, subject, refusal);
+            }
+
             return Error(new McpError(refusal.Code, refusal.Message), key.Key);
         }
 
-        if (tool.Changes && !preview && !rateLimiter.TryAcquire(caller.Digest, out int retryAfter))
+        if (tool.Changes && !preview && !rateLimiter.TryAcquire(caller.Digest, out int retryAfter, out bool report))
         {
-            records.RateLimited(caller, tool, key.Key, retryAfter);
+            if (report)
+            {
+                records.RateLimited(caller, tool, key.Key, retryAfter);
+            }
+
             return Error(
                 new McpError(
                     McpErrorCodes.RateLimited,
