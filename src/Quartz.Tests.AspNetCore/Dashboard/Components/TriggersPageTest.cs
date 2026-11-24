@@ -930,6 +930,40 @@ public class TriggersPageTest
         LastFocused().Should().Be(listing);
     }
 
+    /// <summary>
+    /// A selected trigger that a row's Unschedule takes away leaves the selection with its row: the bar counts what is
+    /// listed, and Pause selected asks about that alone, rather than counting the trigger that has gone and reporting
+    /// it not reached.
+    /// </summary>
+    [Test]
+    public void ATriggerThatLeavesTheListingLeavesTheSelection()
+    {
+        List<TriggerHeaderDto> listed = [.. TestData.Dashboard.TriggerHeaders("nightly", 3)];
+        GivenTriggers(listed);
+        A.CallTo(() => context.Api.UnscheduleJob(TestData.SchedulerName, new TriggerKeyDto("nightly", "trigger-2"), A<CancellationToken>._))
+            .ReturnsLazily(() =>
+            {
+                listed.RemoveAt(1);
+                return new ValueTask<bool>(true);
+            });
+        IRenderedComponent<Triggers> page = context.Render<Triggers>();
+        Select(page, "nightly.trigger-1");
+        Select(page, "nightly.trigger-2");
+        page.WaitForAssertion(() => page.Find(".qz-bulk-count").TextContent.Should().Be("2 selected"));
+
+        page.Find("input.qz-select-trigger[aria-label='Select nightly.trigger-2']")
+            .Closest("tr")!.QuerySelectorAll("td.qz-col-actions button").First(button => button.TextContent.Trim() == "Unschedule").Click();
+        page.Find(".qz-confirm-dialog button.qz-button-danger").Click();
+
+        page.WaitForAssertion(() => page.FindAll("input.qz-select-trigger[aria-label='Select nightly.trigger-2']").Should().BeEmpty());
+        page.Find(".qz-bulk-count").TextContent.Should().Be("1 selected", "the unscheduled trigger left the selection with its row");
+        page.Find("input.qz-select-trigger[aria-label='Select nightly.trigger-1']").HasAttribute("checked").Should().BeTrue();
+
+        page.Find(".qz-bulk-pause").Click();
+
+        page.WaitForAssertion(() => page.Markup.Should().Contain("Pause 1 selected trigger?"));
+    }
+
     private static IElement Opener(IRenderedComponent<Triggers> page, string opener)
     {
         return opener switch

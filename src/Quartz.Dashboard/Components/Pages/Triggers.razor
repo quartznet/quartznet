@@ -666,6 +666,10 @@
             _triggers.AddRange(page.Items);
             _totalTriggers = totalCount;
 
+            // A trigger no longer listed, unscheduled by its row or gone since the last read, cannot stay selected:
+            // the bar would count it, and an action would report it not reached.
+            _selected.IntersectWith(page.Items.Select(static trigger => new TriggerKeyDto(trigger.Group, trigger.Name)));
+
             await LoadRunStatusesAsync(schedulerName, cancellationToken);
 
             _lastUpdatedAt = Clock.GetUtcNow();
