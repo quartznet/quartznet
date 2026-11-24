@@ -41,6 +41,9 @@ namespace Quartz.Mcp.Impl;
 /// </remarks>
 internal static class QuartzTools
 {
+    /// <summary>The one tool every caller is offered.</summary>
+    internal const string ListSchedulers = "list_schedulers";
+
     /// <summary>Every tool, reads first.</summary>
     public static QuartzTool[] Create() =>
     [
@@ -87,14 +90,15 @@ internal static class QuartzTools
         {
             ListToolsResult result = await next(request, cancellationToken).ConfigureAwait(false);
 
+            // A request with no services has no roles to ask about, so it is offered the one tool every caller is:
+            // the filter fails closed. tools/call would refuse the rest anyway, and the list must not promise them.
             IServiceProvider? services = request.Services;
-            if (services is null)
-            {
-                return result;
-            }
-
-            McpCaller caller = McpCaller.Of(request, services.GetService<Microsoft.AspNetCore.Http.IHttpContextAccessor>()?.HttpContext);
-            HashSet<string> offered = await Offered(caller, services, cancellationToken).ConfigureAwait(false);
+            HashSet<string> offered = services is null
+                ? new HashSet<string>(StringComparer.Ordinal) { ListSchedulers }
+                : await Offered(
+                    McpCaller.Of(request, services.GetService<Microsoft.AspNetCore.Http.IHttpContextAccessor>()?.HttpContext),
+                    services,
+                    cancellationToken).ConfigureAwait(false);
 
             List<Tool> kept = [.. result.Tools.Where(tool => offered.Contains(tool.Name))];
             result.Tools.Clear();

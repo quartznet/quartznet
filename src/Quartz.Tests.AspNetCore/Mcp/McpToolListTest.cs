@@ -1,4 +1,8 @@
 using ModelContextProtocol.Client;
+using ModelContextProtocol.Protocol;
+using ModelContextProtocol.Server;
+
+using Quartz.Mcp.Impl;
 
 using Quartz.Configuration;
 using Quartz.Extensibility;
@@ -119,6 +123,30 @@ public sealed class McpToolListTest
 
         (await McpTestHost.ToolNames(await host.Connect(RoleAuthenticationExtensions.Administrator))).Should().HaveCount(19,
             "the application's own scheduler takes changes, so they are still offered");
+    }
+
+    /// <summary>
+    /// A request the filter cannot ask anything about — no services to find the caller's roles in — is offered
+    /// <c>list_schedulers</c> alone: the filter fails closed (#4245 review).
+    /// </summary>
+    [Test]
+    public async Task ARequestWithNoServicesIsOfferedListSchedulersAlone()
+    {
+        McpServer server = A.Fake<McpServer>();
+        RequestContext<ListToolsRequestParams> request = new(server, new JsonRpcRequest { Method = RequestMethods.ToolsList }, new ListToolsRequestParams())
+        {
+            Services = null,
+        };
+
+        ListToolsResult everything = new();
+        foreach (QuartzTool tool in QuartzTools.Create())
+        {
+            everything.Tools.Add(tool.ProtocolTool);
+        }
+
+        ListToolsResult result = await QuartzTools.Filter((_, _) => ValueTask.FromResult(everything))(request, CancellationToken.None);
+
+        result.Tools.Select(static tool => tool.Name).Should().Equal("list_schedulers");
     }
 
     private const string OnlyTheAgent = "OnlyTheAgent";
