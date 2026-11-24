@@ -66,8 +66,15 @@ internal static class TargetFaults
             OperationCanceledException when !requestAborted.IsCancellationRequested => new TargetFaultException(
                 target, TargetFault.TimedOut, $"Target '{target}' did not answer in time.", mayHaveApplied: mutation, ReasonOf(exception)),
 
-            HttpRequestException { StatusCode: null } unreachable => new TargetFaultException(
+            // Nothing was sent: the connection, the name or the TLS handshake failed first, or an agent is not
+            // connected. Only that is "not reachable"; a retry cannot run anything twice.
+            HttpRequestException { StatusCode: null } unreachable when NothingWasSent(unreachable) => new TargetFaultException(
                 target, TargetFault.Unavailable, $"Target '{target}' is not reachable.", mayHaveApplied: false, ReasonOf(unreachable)),
+
+            // Everything else without a status failed after the request went: the answer ended early, was not
+            // HTTP, or broke the protocol. The target may have run it, so a change says it may have been applied.
+            HttpRequestException { StatusCode: null } broken => new TargetFaultException(
+                target, TargetFault.Failed, Failed(target), mayHaveApplied: mutation, ReasonOf(broken)),
 
             // A 404 with no problem details is a target older than the route, which HttpScheduler raises as
             // it is when no version check of its own came first; a NotSupportedException is one that did. Both
@@ -118,6 +125,18 @@ internal static class TargetFaults
     }
 
     private static string Failed(string target) => $"Target '{target}' failed.";
+
+    /// <summary>
+    /// Whether the failure came before the request was sent: a refused or failed connection, a name that did not
+    /// resolve, a TLS handshake that failed. The dashboard's agent transport raises a connection error for an
+    /// agent that is not connected.
+    /// </summary>
+    private static bool NothingWasSent(HttpRequestException exception)
+    {
+        return exception.HttpRequestError is HttpRequestError.ConnectionError
+            or HttpRequestError.NameResolutionError
+            or HttpRequestError.SecureConnectionError;
+    }
 
     /// <summary>
     /// What failed, as a class rather than a message: a transport's message names the address it could not
