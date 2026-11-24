@@ -126,6 +126,18 @@ public class GatewayTargetClientTest
     }
 
     [Test]
+    public async Task TheEchoIsReadPercentEncodedAsTheHostWritesIt()
+    {
+        handler.EchoValue = "eu%20west";
+        HttpScheduler scheduler = new(new SchedulerRef("QuartzScheduler", "eu west"), httpClient);
+
+        await scheduler.GetMetadata();
+
+        handler.Requests.Should().ContainSingle().Which.Query.Should().Be("?target=eu%20west",
+            "a header carries ASCII only, so the host echoes the target as it was sent");
+    }
+
+    [Test]
     public async Task AFailureWithoutTheEchoKeepsItsOwnMeaning()
     {
         handler.Echo = false;

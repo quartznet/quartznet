@@ -72,8 +72,9 @@ internal static class GatewayTarget
             return;
         }
 
+        // The host writes the target percent-encoded, as it was sent: a header carries ASCII only.
         if (response.Headers.TryGetValues(HttpApiConstants.TargetHeader, out IEnumerable<string>? echoed)
-            && echoed.Any(value => string.Equals(value, gatewayTarget, StringComparison.OrdinalIgnoreCase)))
+            && echoed.Any(value => string.Equals(Uri.UnescapeDataString(value), gatewayTarget, StringComparison.OrdinalIgnoreCase)))
         {
             return;
         }
