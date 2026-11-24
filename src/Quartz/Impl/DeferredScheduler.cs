@@ -27,7 +27,7 @@ namespace Quartz.Impl;
 /// a registration always knows the name it was made under.
 /// </para>
 /// </remarks>
-internal sealed class DeferredScheduler : IScheduler, ISharedExecutionGroupSource, IFiringWaitingScheduler, IDisposable
+internal sealed class DeferredScheduler : IScheduler, ISharedExecutionGroupSource, IFiringWaitingScheduler, IStartupDeclarationsScheduler, IDisposable
 {
     private readonly ISchedulerFactory factory;
     private readonly IOptionsMonitor<QuartzSchedulerOptions> options;
@@ -555,6 +555,16 @@ internal sealed class DeferredScheduler : IScheduler, ISharedExecutionGroupSourc
         return target is IFiringWaitingScheduler waiting
             ? await waiting.Watch(triggerKey, cancellationToken).ConfigureAwait(false)
             : throw SchedulerWaitExtensions.CannotWait(target);
+    }
+
+    /// <summary>
+    /// Asks the scheduler this handle resolves to: the <see cref="IScheduler" /> an application is injected is the
+    /// one a dashboard in its process reads (#4412).
+    /// </summary>
+    async ValueTask<bool?> IStartupDeclarationsScheduler.IsDeclaredAtStartup(TriggerKey triggerKey, CancellationToken cancellationToken)
+    {
+        IScheduler target = await Resolve(cancellationToken).ConfigureAwait(false);
+        return await StartupDeclarations.IsDeclaredAtStartup(target, triggerKey, cancellationToken).ConfigureAwait(false);
     }
 
     public async ValueTask<PagedResult<JobGroup>> QueryJobGroups(JobGroupQuery query, CancellationToken cancellationToken = default)

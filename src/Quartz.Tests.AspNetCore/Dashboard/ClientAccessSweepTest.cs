@@ -120,6 +120,7 @@ public class ClientAccessSweepTest
             "GetTriggerState",
             "GetTriggersOfJob",
             "GetUpcomingFireTimes",
+            "IsTriggerDeclaredAtStartup",
             "QueryClusterNodes",
             "QueryExecutionStatistics",
             "QueryExecutions",

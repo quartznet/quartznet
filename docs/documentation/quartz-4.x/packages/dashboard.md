@@ -418,6 +418,23 @@ times and state are kept; the cron editor is the one that reschedules.
 - An `IQuartzApiClient` of your own that does not implement `UpdateTriggerDetails` answers its default,
   `NotSupportedException`. The button is then disabled with that reason.
 
+### A trigger declared at start-up
+
+From 4.9, every editor of a trigger the scheduler's start-up declares says: **Declared at start-up: this change
+lasts until the next start.** The cron editor and *Edit details* show it.
+
+- **Why.** With `OverwriteExistingData` on, the default, every start stores each `AddTrigger` and `ScheduleJob`
+  registration, and each scheduling file, over the stored trigger. See
+  [What a start keeps](../how-tos/rescheduling-jobs.md#what-a-start-keeps). To keep a change, make it in the
+  declaration.
+- **Which triggers.** One a declaration names and stores over the stored copy. On the in-memory store, which keeps
+  nothing across starts, any declared trigger. With `IgnoreDuplicates` on a persistent store, the next start keeps
+  the stored trigger, so the edit lasts and nothing is said.
+- **Only when the scheduler can tell.** In process, over HTTP and through an agent, from 4.9:
+  `IQuartzApiClient.IsTriggerDeclaredAtStartup`. A window, a host or agent older than 4.9, and an
+  `IQuartzApiClient` of your own that does not implement it, say nothing.
+- A trigger a scheduling file adds on a rescan, after the first start, is not counted.
+
 ### Backfilling a trigger
 
 From 4.3, *Backfill…* on a trigger's page runs its schedule over a past range: one firing per slot. See

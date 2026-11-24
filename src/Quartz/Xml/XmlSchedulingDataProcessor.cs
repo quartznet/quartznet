@@ -758,11 +758,14 @@ internal class XmlSchedulingDataProcessor
         // Before anything is stored, so a key passed over below is still recorded as declared: the
         // first start prunes the owned groups against these, when the scheduler keeps a record. A
         // declared trigger names its job, so that job is declared too, wherever it was stored from.
+        // With OverwriteExistingData, every start stores these triggers over the stored ones, which is
+        // what the dashboard warns an editor of (#4412).
         if (Configuration.DeclaredContent.Of(scheduler) is { } record)
         {
             record.Declare(
                 jobs.Select(static x => x.Key).Concat(triggers.Select(static x => x.JobKey)),
-                triggers.Select(static x => x.Key));
+                triggers.Select(static x => x.Key),
+                OverwriteExistingData);
             record.NeverPrune(jobGroupsToNeverDelete, triggerGroupsToNeverDelete);
         }
 

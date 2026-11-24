@@ -129,13 +129,15 @@ internal record SchedulerContextDto(Dictionary<string, string?> Context)
 }
 
 /// <summary>
-/// A trigger's state, and why it is paused while it is.
+/// A trigger's state, why it is paused while it is, and whether the next start stores it again.
 /// </summary>
 /// <remarks>
 /// <see cref="Pause" /> is optional so a 4.2 host's answer, which has none, still reads as a state
-/// with no pause record.
+/// with no pause record. <see cref="DeclaredAtStartup" /> is what
+/// <see cref="Impl.IStartupDeclarationsScheduler.IsDeclaredAtStartup" /> answers, from 4.9: a host older than
+/// that sends none, and it reads as <see langword="null" />, which is what a scheduler that cannot say answers too.
 /// </remarks>
-internal record TriggerStateDto(TriggerState State, PauseDto? Pause = null);
+internal record TriggerStateDto(TriggerState State, PauseDto? Pause = null, bool? DeclaredAtStartup = null);
 
 /// <summary>
 /// What a pause recorded: <see cref="PauseInfo" /> on the wire.

@@ -1,4 +1,5 @@
 ﻿{
   "state": "Blocked",
-  "pause": null
+  "pause": null,
+  "declaredAtStartup": null
 }

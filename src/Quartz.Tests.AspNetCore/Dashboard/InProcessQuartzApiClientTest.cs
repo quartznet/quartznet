@@ -171,6 +171,19 @@ public class InProcessQuartzApiClientTest
         (await client.GetJobGroupPause("acme", "g")).Should().BeNull();
     }
 
+    /// <summary>
+    /// A client of an application's own, written before 4.9, cannot say whether a trigger is declared, and the
+    /// editors then warn of nothing (#4412).
+    /// </summary>
+    [Test]
+    public async Task ADataSourceOfAnEarlier4xCannotSayWhetherATriggerIsDeclared()
+    {
+        IQuartzApiClient client = A.Fake<IQuartzApiClient>();
+        A.CallTo(client).Where(call => call.Method.Name == nameof(IQuartzApiClient.IsTriggerDeclaredAtStartup)).CallsBaseMethod();
+
+        (await client.IsTriggerDeclaredAtStartup("acme", new TriggerKeyDto("g", "t"))).Should().BeNull("the datum is reported as unavailable");
+    }
+
     [Test]
     public async Task ASetPausedWithAReasonIsOneSchedulerCallAndItsRecordComesBack()
     {

@@ -419,9 +419,9 @@ internal sealed class QuartzSchedulerResources
     internal ISchedulerRepository SchedulerRepository { get; set; }
 
     /// <summary>
-    /// The keys this scheduler's declarations name, which its first start prunes the owned groups against;
-    /// <see langword="null" /> when <see cref="SchedulingOptions.PruneUndeclaredInGroups" /> lists none or the
-    /// store keeps nothing across starts.
+    /// The keys this scheduler's declarations name, which its first start prunes the owned groups against
+    /// when <see cref="SchedulingOptions.PruneUndeclaredInGroups" /> lists any, and which say whether the next
+    /// start stores a trigger again; <see langword="null" /> for a scheduler the container did not build.
     /// </summary>
     internal Configuration.DeclaredContent? DeclaredContent { get; set; }
 }

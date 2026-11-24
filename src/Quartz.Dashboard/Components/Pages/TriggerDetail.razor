@@ -98,6 +98,7 @@
         @if (_editing && CanEdit)
         {
             <TriggerDetailsEditor Trigger="@_trigger"
+                                  DeclaredAtStartup="@_declaredAtStartup"
                                   OnSaved="OnDetailsSavedAsync"
                                   OnUnavailable="OnEditingUnavailable"
                                   OnCancel="CancelEditing" />
@@ -225,6 +226,7 @@
         {
             <section class="qz-section">
                 <h2>Edit cron schedule</h2>
+                <DeclaredAtStartupNote Declared="@_declaredAtStartup" />
                 <div class="qz-form-group">
                     <label class="qz-form-label" for="trigger-cron-expression">Cron expression</label>
                     <input id="trigger-cron-expression" class="qz-input qz-input-mono" @bind="_editedCronExpression" />
@@ -282,6 +284,12 @@
     private string _editedCronExpression = string.Empty;
     private string _misfireName = string.Empty;
     private bool _editing;
+
+    /// <summary>
+    /// Whether the next start stores this trigger again over what an editor saves, which every editor on the page
+    /// warns of; <see langword="null" /> when the source cannot say, and for a visitor who may edit nothing.
+    /// </summary>
+    private bool? _declaredAtStartup;
 
     /// <summary>
     /// Why this page's data source cannot edit a trigger in place, once it has said so, or
@@ -442,6 +450,7 @@
                 _trigger = null;
                 _triggerState = TriggerState.None;
                 _pause = null;
+                _declaredAtStartup = null;
                 _diagnosisFacts = null;
                 _lastUpdatedAt = null;
                 _staleReason = null;
@@ -462,6 +471,10 @@
             // only when there is one. TriggerState.None is what a key that resolves to nothing answers.
             bool continuationParentExists = trigger.Continuation.Parent is { } continuationParent
                 && await Api.GetTriggerState(schedulerName, new TriggerKeyDto(continuationParent.Group, continuationParent.Name), cancellationToken) != TriggerState.None;
+
+            bool? declaredAtStartup = CanEdit || CanReschedule
+                ? await ReadDeclaredAtStartup(schedulerName, cancellationToken)
+                : null;
 
             SchedulerHeaderDto? header = Scheduler.Find(schedulerName);
             TriggerDiagnosisFacts diagnosis = await TriggerDiagnosis.Read(
@@ -486,6 +499,7 @@
             }
 
             _misfireName = TriggerDetailsForm.MisfireNameOf(trigger);
+            _declaredAtStartup = declaredAtStartup;
             _continuationParentExists = continuationParentExists;
             _diagnosisFacts = diagnosis;
             _lastUpdatedAt = Clock.GetUtcNow();
@@ -506,6 +520,22 @@
         finally
         {
             _isLoading = false;
+        }
+    }
+
+    /// <summary>
+    /// Whether the next start stores this trigger again, or <see langword="null" /> when the source cannot say. It is
+    /// the editors' warning and nothing else, so a read that fails costs the warning rather than the page.
+    /// </summary>
+    private async Task<bool?> ReadDeclaredAtStartup(string schedulerName, CancellationToken cancellationToken)
+    {
+        try
+        {
+            return await Api.IsTriggerDeclaredAtStartup(schedulerName, TriggerKey, cancellationToken);
+        }
+        catch (Exception) when (!cancellationToken.IsCancellationRequested)
+        {
+            return null;
         }
     }
 

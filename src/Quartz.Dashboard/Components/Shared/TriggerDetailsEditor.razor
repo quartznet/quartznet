@@ -12,6 +12,7 @@
    which is what tells this apart from the cron editor's reschedule. *@
 <section class="qz-section qz-trigger-editor" data-testid="trigger-editor">
     <h2>Edit details</h2>
+    <DeclaredAtStartupNote Declared="@DeclaredAtStartup" />
 
     @if (_errors.Count > 0 || !string.IsNullOrWhiteSpace(_refusal))
     {
@@ -179,6 +180,12 @@
     /// </summary>
     [Parameter]
     public EventCallback OnSaved { get; set; }
+
+    /// <summary>
+    /// Whether the next start stores the trigger again, over what this editor saves: said above the fields.
+    /// </summary>
+    [Parameter]
+    public bool? DeclaredAtStartup { get; set; }
 
     /// <summary>
     /// Raised with the reason when the data source says it cannot edit a trigger in place at all, which

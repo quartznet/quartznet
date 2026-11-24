@@ -245,13 +245,74 @@ public class TriggerDetailPageTest
             "the schedule is said in the trigger's own terms instead: an interval of 120 days and change, to the millisecond");
     }
 
+    /// <summary>
+    /// A trigger its scheduler's start-up declares is stored again at the next start, over whatever an editor
+    /// saves, and each editor says so (#4412).
+    /// </summary>
+    [Test]
+    public void TheEditorsOfADeclaredTriggerSayTheChangeLastsUntilTheNextStart()
+    {
+        GivenTrigger(CronTrigger("0/25 * * * * ?"));
+        GivenDeclaredAtStartup(true);
+
+        IRenderedComponent<TriggerDetail> page = Render();
+
+        page.WaitForAssertion(() => page.Find("[data-testid=declared-at-startup-note]").TextContent.Should().Be(
+            "Declared at start-up: this change lasts until the next start.",
+            "the cron editor saves a reschedule the next start undoes"));
+
+        page.Find("button.qz-trigger-edit").Click();
+
+        page.WaitForAssertion(() => page.FindAll("[data-testid=trigger-editor] [data-testid=declared-at-startup-note]").Should().ContainSingle(
+            "Edit details is undone the same way"));
+    }
+
+    [TestCase(false)]
+    [TestCase(null)]
+    public void AnEditorSaysNothingOfATriggerTheNextStartDoesNotStoreAgain(bool? declared)
+    {
+        GivenTrigger(CronTrigger("0/25 * * * * ?"));
+        GivenDeclaredAtStartup(declared);
+
+        IRenderedComponent<TriggerDetail> page = Render();
+        page.Find("button.qz-trigger-edit").Click();
+
+        page.WaitForAssertion(() =>
+        {
+            page.FindAll("[data-testid=trigger-editor]").Should().ContainSingle();
+            page.FindAll("[data-testid=declared-at-startup-note]").Should().BeEmpty(
+                declared is null ? "a source that cannot say warns of nothing" : "a trigger added at run time keeps an edit");
+        });
+    }
+
+    [Test]
+    public void ADeclarationThatCannotBeReadCostsTheWarningAndNotThePage()
+    {
+        GivenTrigger(CronTrigger("0/25 * * * * ?"));
+        A.CallTo(() => context.Api.IsTriggerDeclaredAtStartup(TestData.SchedulerName, A<TriggerKeyDto>._, A<CancellationToken>._))
+            .ThrowsAsync(new HttpRequestException("the host went away"));
+
+        IRenderedComponent<TriggerDetail> page = Render();
+
+        page.WaitForAssertion(() =>
+        {
+            page.Find("#trigger-cron-expression").GetAttribute("value").Should().Be("0/25 * * * * ?");
+            page.FindAll("[data-testid=declared-at-startup-note]").Should().BeEmpty();
+        });
+    }
+
     [Test]
     public void ReadOnlyModeHidesEveryMutatingAction()
     {
         context.Options.ReadOnly = true;
         GivenTrigger(CronTrigger("0/25 * * * * ?"));
+        GivenDeclaredAtStartup(true);
 
         IRenderedComponent<TriggerDetail> page = Render();
+
+        // A visitor who may edit nothing needs no warning about an edit.
+        A.CallTo(() => context.Api.IsTriggerDeclaredAtStartup(A<string>._, A<TriggerKeyDto>._, A<CancellationToken>._))
+            .MustNotHaveHappened();
 
         page.HasButton("Pause").Should().BeFalse();
         page.HasButton("Resume").Should().BeFalse();
@@ -612,6 +673,12 @@ public class TriggerDetailPageTest
             .WithCalendarName("SomeCalendar")
             .WithCronSchedule(cronExpression)
             .Build();
+    }
+
+    private void GivenDeclaredAtStartup(bool? declared)
+    {
+        A.CallTo(() => context.Api.IsTriggerDeclaredAtStartup(TestData.SchedulerName, new TriggerKeyDto(TriggerGroup, TriggerName), A<CancellationToken>._))
+            .Returns(declared);
     }
 
     private void GivenTrigger(ITrigger trigger)

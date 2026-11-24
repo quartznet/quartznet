@@ -10,7 +10,7 @@ namespace Quartz.Impl;
 /// Every member is <c>virtual</c>, and a member added to <see cref="IScheduler" /> lands here as one
 /// more forwarder — which is what keeps a decorator in somebody else's codebase compiling.
 /// </remarks>
-public class DelegatingScheduler : IScheduler, IBackfillingScheduler, IUpcomingFireTimesScheduler, IScheduleDescribingScheduler, IFiringWaitingScheduler
+public class DelegatingScheduler : IScheduler, IBackfillingScheduler, IUpcomingFireTimesScheduler, IScheduleDescribingScheduler, IFiringWaitingScheduler, IStartupDeclarationsScheduler
 {
     private readonly IScheduler scheduler;
 
@@ -586,6 +586,15 @@ public class DelegatingScheduler : IScheduler, IBackfillingScheduler, IUpcomingF
         return EndsIn<IFiringWaitingScheduler>()
             ? ((IFiringWaitingScheduler) scheduler).Watch(triggerKey, cancellationToken)
             : throw SchedulerWaitExtensions.CannotWait(InnermostScheduler());
+    }
+
+    /// <summary>
+    /// Asks the scheduler this wrapping ends in, past every decorator: what its declarations store at a start is
+    /// nothing a decorator changes.
+    /// </summary>
+    ValueTask<bool?> IStartupDeclarationsScheduler.IsDeclaredAtStartup(TriggerKey triggerKey, CancellationToken cancellationToken)
+    {
+        return StartupDeclarations.IsDeclaredAtStartup(InnermostScheduler(), triggerKey, cancellationToken);
     }
 
     /// <summary>

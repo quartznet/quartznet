@@ -25,20 +25,20 @@ using Quartz.Impl;
 namespace Quartz.Configuration;
 
 /// <summary>
-/// Every job and trigger key the declarations name, recorded as they are applied, for the prune
-/// <see cref="SchedulingOptions.PruneUndeclaredInGroups" /> asks for at the first start.
+/// Every job and trigger key the declarations name, recorded as they are applied: for the prune
+/// <see cref="SchedulingOptions.PruneUndeclaredInGroups" /> asks for at the first start, and for whether a
+/// change to a stored trigger lasts past the next start (#4412).
 /// </summary>
 /// <remarks>
 /// <para>
-/// One per scheduler, on its <see cref="Core.QuartzSchedulerResources" />, and only when the option lists a
-/// group and the store persists: a scheduler with none records nothing. Code declarations are recorded as
-/// the scheduler is built, a scheduling file's as its plugin starts; both go through
-/// <see cref="Xml.XmlSchedulingDataProcessor.ScheduleJobs" />.
+/// One per scheduler the container builds, on its <see cref="Core.QuartzSchedulerResources" />. Code
+/// declarations are recorded as the scheduler is built, a scheduling file's as its plugin starts; both go
+/// through <see cref="Xml.XmlSchedulingDataProcessor.ScheduleJobs" />.
 /// </para>
 /// <para>
 /// A key counts whether or not it was stored: a key <see cref="SchedulingOptions.IgnoreDuplicates" /> passed
-/// over, or a trigger switched off with <c>-</c>, is still the declarations'. After the prune the record is
-/// closed, and what a later rescan of a file adds is not recorded.
+/// over, or a trigger switched off with <c>-</c>, is still the declarations'. The first start closes the
+/// record, after the prune when there is one, and what a later rescan of a file adds is not recorded.
 /// </para>
 /// </remarks>
 internal sealed class DeclaredContent
@@ -46,33 +46,39 @@ internal sealed class DeclaredContent
     private readonly Lock gate = new();
     private readonly HashSet<JobKey> jobs = [];
     private readonly HashSet<TriggerKey> triggers = [];
+    private readonly HashSet<TriggerKey> storedOverAtStart = [];
     private readonly HashSet<string> neverPrunedJobGroups = new(StringComparer.Ordinal);
     private readonly HashSet<string> neverPrunedTriggerGroups = new(StringComparer.Ordinal);
     private readonly List<string> unread = [];
+    private readonly bool storePersists;
     private bool closed;
 
-    private DeclaredContent(string[] ownedGroups)
+    private DeclaredContent(string[] ownedGroups, bool storePersists)
     {
         OwnedGroups = ownedGroups;
+        this.storePersists = storePersists;
     }
 
     /// <summary>
-    /// The groups the declarations own, each once, in the order they were listed.
+    /// The groups the declarations own, each once, in the order they were listed; none when the option lists
+    /// none or the store keeps nothing across starts.
     /// </summary>
     public IReadOnlyList<string> OwnedGroups { get; }
 
     /// <summary>
-    /// The record a scheduler keeps, or <see langword="null" /> when it prunes nothing: the option lists no
-    /// group, or the store keeps nothing across starts.
+    /// Whether the first start prunes the owned groups: the option lists a group, and the store keeps what it
+    /// holds across starts.
     /// </summary>
-    public static DeclaredContent? For(SchedulingOptions scheduling, IJobStore jobStore)
-    {
-        if (scheduling.PruneUndeclaredInGroups.Count == 0 || !jobStore.SupportsPersistence)
-        {
-            return null;
-        }
+    public bool Prunes => OwnedGroups.Count > 0;
 
-        return new DeclaredContent(scheduling.PruneUndeclaredInGroups.Distinct(StringComparer.Ordinal).ToArray());
+    /// <summary>
+    /// The record a scheduler keeps.
+    /// </summary>
+    public static DeclaredContent For(SchedulingOptions scheduling, IJobStore jobStore)
+    {
+        bool storePersists = jobStore.SupportsPersistence;
+        string[] ownedGroups = storePersists ? scheduling.PruneUndeclaredInGroups.Distinct(StringComparer.Ordinal).ToArray() : [];
+        return new DeclaredContent(ownedGroups, storePersists);
     }
 
     /// <summary>
@@ -80,7 +86,7 @@ internal sealed class DeclaredContent
     /// </summary>
     /// <remarks>
     /// Every processor and plugin is handed the scheduler's own facade, so a scheduler of somebody else's
-    /// is one that prunes nothing.
+    /// is one that records nothing.
     /// </remarks>
     public static DeclaredContent? Of(IScheduler scheduler)
     {
@@ -98,9 +104,24 @@ internal sealed class DeclaredContent
     public IReadOnlyList<string> Unread => unread;
 
     /// <summary>
-    /// Records keys a declaration names.
+    /// Records keys a declaration names, which stores nothing over what the store already holds.
     /// </summary>
     public void Declare(IEnumerable<JobKey> jobKeys, IEnumerable<TriggerKey> triggerKeys)
+    {
+        Declare(jobKeys, triggerKeys, storesOverStored: false);
+    }
+
+    /// <summary>
+    /// Records keys a declaration names.
+    /// </summary>
+    /// <param name="jobKeys">The jobs it names.</param>
+    /// <param name="triggerKeys">The triggers it names.</param>
+    /// <param name="storesOverStored">
+    /// Whether it stores its triggers over the ones the store holds under the same keys, as
+    /// <see cref="SchedulingOptions.OverwriteExistingData" /> does; it does so at every start, so a change made
+    /// to one of them in between lasts until the next.
+    /// </param>
+    public void Declare(IEnumerable<JobKey> jobKeys, IEnumerable<TriggerKey> triggerKeys, bool storesOverStored)
     {
         lock (gate)
         {
@@ -110,7 +131,30 @@ internal sealed class DeclaredContent
             }
 
             jobs.UnionWith(jobKeys);
-            triggers.UnionWith(triggerKeys);
+            foreach (TriggerKey triggerKey in triggerKeys)
+            {
+                triggers.Add(triggerKey);
+                if (storesOverStored)
+                {
+                    storedOverAtStart.Add(triggerKey);
+                }
+            }
+        }
+    }
+
+    /// <summary>
+    /// Whether the next start stores the declared trigger again, over a change made to it since: a declaration
+    /// that stores over what is stored names it, or the store keeps nothing across starts and a declaration names
+    /// it at all.
+    /// </summary>
+    /// <remarks>
+    /// Read while declarations may still be recorded, by a scheduler that has not started yet, so under the lock.
+    /// </remarks>
+    public bool StoresAgainAtNextStart(TriggerKey key)
+    {
+        lock (gate)
+        {
+            return storePersists ? storedOverAtStart.Contains(key) : triggers.Contains(key);
         }
     }
 
@@ -151,8 +195,8 @@ internal sealed class DeclaredContent
     }
 
     /// <summary>
-    /// Ends the recording: what is recorded afterwards is dropped, and the members that read the record may
-    /// be used.
+    /// Ends the recording: what is recorded afterwards is dropped, and the members that read the record
+    /// without the lock may be used.
     /// </summary>
     public void Close()
     {

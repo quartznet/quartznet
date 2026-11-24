@@ -1,0 +1,19 @@
+@* Said in every editor of a trigger its scheduler's start-up declares: the next start stores the declared trigger
+   again, over whatever the editor saves (#4412). Nothing is said when the source cannot tell, or when the trigger is
+   not declared. *@
+@if (Declared == true)
+{
+    <p class="qz-declared-note" role="note" data-testid="declared-at-startup-note">@Text</p>
+}
+
+@code {
+    /// <summary>The sentence, which the documentation repeats.</summary>
+    public const string Text = "Declared at start-up: this change lasts until the next start.";
+
+    /// <summary>
+    /// What <see cref="Quartz.Dashboard.Services.IQuartzApiClient.IsTriggerDeclaredAtStartup" /> answered for the
+    /// trigger being edited.
+    /// </summary>
+    [Parameter]
+    public bool? Declared { get; set; }
+}
