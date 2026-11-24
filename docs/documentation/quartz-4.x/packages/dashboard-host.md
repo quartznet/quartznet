@@ -153,7 +153,12 @@ redirect.
 - The [operator roles](dashboard.md#operator-roles) apply as for the dashboard's buttons, `Roles:Operations`
   overrides included.
 - **Every request with an `Origin` header is refused with `403`** unless the origin is in `AllowedOrigins`. A
-  script sends none. In `Unsecured` mode this is what stops a DNS-rebinding page; bind such a host to loopback too.
+  script sends none. This stops cross-origin writes, a DNS-rebinding page's included.
+- **It does not stop a rebinding page's reads**: once the page's name points at the host, its `GET` is
+  same-origin and carries no `Origin`. Set `AllowedHosts` (ASP.NET Core's host filtering, a top-level key) to the
+  names the host is reached by, such as `AllowedHosts=quartz.example.com`; a rebound request carries the page's
+  own name and is refused. In `Unsecured` mode, where no credential is needed, also bind the host to loopback
+  (`--urls http://127.0.0.1:5000`).
 - Each change and each refusal is an entry in the [Action Log](dashboard.md#action-log) with *Via HTTP API*, and an
   audit line, `9007` or `9009`.
 - A target sees the host's credential, as it does for a visitor: see [Limitations](#limitations).

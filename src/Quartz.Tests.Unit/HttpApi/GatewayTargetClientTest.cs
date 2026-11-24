@@ -169,7 +169,6 @@ public class GatewayTargetClientTest
     }
 
     [TestCase("a/b")]
-    [TestCase("a+b")]
     [TestCase(" ")]
     public void AGatewayTargetIsATargetName(string gatewayTarget)
     {
@@ -183,6 +182,26 @@ public class GatewayTargetClientTest
         });
 
         register.Should().Throw<OptionsValidationException>().WithMessage("*GatewayTarget*");
+    }
+
+    /// <summary>
+    /// A merged cluster's key is a target the host lists and serves, so a gateway target may name one.
+    /// </summary>
+    [Test]
+    public async Task AGatewayTargetMayNameAMergedCluster()
+    {
+        ServiceCollection services = new();
+        services.AddQuartzHttpClient(options =>
+        {
+            options.SchedulerName = "QuartzScheduler";
+            options.CreateHttpClient = _ => httpClient;
+            options.GatewayTarget = "a+b";
+        });
+
+        await using ServiceProvider provider = services.BuildServiceProvider();
+        await provider.GetRequiredKeyedService<IScheduler>("QuartzScheduler").GetMetadata();
+
+        handler.Requests.Should().ContainSingle().Which.Query.Should().Be("?target=a%2Bb", "a '+' is escaped, as a query reads it as a space");
     }
 
     [Test]

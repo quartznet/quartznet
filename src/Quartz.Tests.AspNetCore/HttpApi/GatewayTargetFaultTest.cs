@@ -110,7 +110,7 @@ public sealed class GatewayTargetFaultTest
 
         response.StatusCode.Should().Be(HttpStatusCode.BadGateway, "the caller's credential was fine: the host's was not");
         (await response.Content.ReadAsStringAsync()).Should().Contain($"Target '{Target}' refused this host's credential.");
-        RecordedLogEntry line = logs.WithEventId(9012).Should().ContainSingle().Subject;
+        RecordedLogEntry line = logs.WithEventId(9014).Should().ContainSingle().Subject;
         line.Level.Should().Be(LogLevel.Error);
         line.Properties["Fault"].Should().Be(nameof(TargetFault.CredentialRefused));
     }
@@ -126,6 +126,7 @@ public sealed class GatewayTargetFaultTest
         (await response.Content.ReadAsStringAsync()).Should()
             .Contain($"Target '{Target}' refused: Not authorized for PauseAll on scheduler {TestData.SchedulerName}: it needs Operate");
         logs.WithEventId(9012).Should().ContainSingle().Which.Level.Should().Be(LogLevel.Warning);
+        logs.WithEventId(9014).Should().BeEmpty("a refusal is the target's rule, not a failure");
     }
 
     [Test]
@@ -138,7 +139,7 @@ public sealed class GatewayTargetFaultTest
         response.StatusCode.Should().Be(HttpStatusCode.BadGateway);
         string body = await response.Content.ReadAsStringAsync();
         body.Should().Contain($"Target '{Target}' failed.").And.NotContain("db-1", "a fault's text may carry the target's internals");
-        logs.WithEventId(9012).Should().ContainSingle().Which.Properties["Fault"].Should().Be(nameof(TargetFault.Failed));
+        logs.WithEventId(9014).Should().ContainSingle().Which.Properties["Fault"].Should().Be(nameof(TargetFault.Failed));
     }
 
     [Test]

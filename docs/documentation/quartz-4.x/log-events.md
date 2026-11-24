@@ -413,8 +413,9 @@ matching on its text is not.
 | 9009 | Warning | `Quartz.AspNetCore` | `"Api user {User} was refused {Operation} on scheduler {SchedulerName}: it needs {Access}"` |
 | 9010 | Warning | `Quartz.AspNetCore` | `"Target {Target} is not reachable for {Operation} on scheduler {SchedulerName}: {Reason}"` |
 | 9011 | Warning | `Quartz.AspNetCore` | `"Target {Target} did not answer {Operation} on scheduler {SchedulerName} in time: {Reason}"` |
-| 9012 | None | `Quartz.AspNetCore` | `"Target {Target} did not serve {Operation} on scheduler {SchedulerName}: {Fault}, {Reason}"` |
+| 9012 | Warning | `Quartz.AspNetCore` | `"Target {Target} refused {Operation} on scheduler {SchedulerName}: {Reason}"` |
 | 9013 | Error | `Quartz.AspNetCore` | `"Recording an operator action with {Recorder} failed"` |
+| 9014 | Error | `Quartz.AspNetCore` | `"Target {Target} did not serve {Operation} on scheduler {SchedulerName}: {Fault}, {Reason}"` |
 | 9100 | Information | `Quartz.Dashboard` | `"Dashboard user {User} performed {Action} on {Target} of scheduler {SchedulerName}: {Outcome} (origin {Origin}, node {Node})"` |
 | 9101 | Information | `Quartz.Dashboard` | `"Dashboard user {User} attempted {Action} on {Target} of scheduler {SchedulerName} and it failed: {Reason} (origin {Origin}, node {Node})"` |
 | 9102 | Debug | `Quartz.Dashboard` | `"Dashboard connection {ConnectionId} opened for user {User}"` |

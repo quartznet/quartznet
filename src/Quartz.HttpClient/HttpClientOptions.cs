@@ -113,8 +113,14 @@ public sealed class HttpClientOptions
     /// <para>
     /// The scheduler, its execution history and its event stream all carry it, and each refuses a success
     /// that does not carry the <c>Quartz-Target</c> header back: a host older than 4.9 ignores
-    /// <c>?target=</c> and would otherwise answer for a scheduler of its own with the bare name. A target name
-    /// cannot contain <c>/</c> or <c>+</c>, as <see cref="Target" /> cannot.
+    /// <c>?target=</c> and would otherwise answer for a scheduler of its own with the bare name. The refusal
+    /// comes with that host's answer, so a change it was asked for has already been made to its own scheduler
+    /// of that name; point a gateway target only at a 4.9 host.
+    /// </para>
+    /// <para>
+    /// It cannot contain <c>/</c>, which separates it from the name in a key. It may contain <c>+</c>: the host
+    /// lists a merged cluster's schedulers under the key of its members, <c>a+b/QuartzScheduler</c>, and that is
+    /// a target it serves.
     /// </para>
     /// </remarks>
     public string? GatewayTarget { get; set; }
@@ -158,9 +164,12 @@ internal sealed class HttpClientOptionsValidator : IValidateOptions<HttpClientOp
             (failures ??= []).Add($"{nameof(HttpClientOptions.Target)}: {problem}");
         }
 
-        if (options.GatewayTarget is not null && SchedulerTargets.Problem(options.GatewayTarget) is { } gatewayProblem)
+        // The host's name for a target, not one this process registers: a merged cluster's key, a+b, is one the
+        // host lists and serves, so only what cannot be half of a key is refused.
+        if (options.GatewayTarget is not null && (string.IsNullOrWhiteSpace(options.GatewayTarget) || options.GatewayTarget.Contains(SchedulerRef.Separator, StringComparison.Ordinal)))
         {
-            (failures ??= []).Add($"{nameof(HttpClientOptions.GatewayTarget)}: {gatewayProblem}");
+            (failures ??= []).Add(
+                $"{nameof(HttpClientOptions.GatewayTarget)} is '{options.GatewayTarget}': it must not be blank or contain '{SchedulerRef.Separator}', which separates a target from a scheduler's name.");
         }
 
         return failures is null ? ValidateOptionsResult.Success : ValidateOptionsResult.Fail(failures);

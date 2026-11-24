@@ -22,7 +22,9 @@
     "Target {Target} is not reachable for {Operation} on scheduler {SchedulerName}: {Reason}"
 9011  Warning  HttpApiLog.TargetTimedOut
     "Target {Target} did not answer {Operation} on scheduler {SchedulerName} in time: {Reason}"
-9012  None  HttpApiLog.TargetFailed
-    "Target {Target} did not serve {Operation} on scheduler {SchedulerName}: {Fault}, {Reason}"
+9012  Warning  HttpApiLog.TargetRefused
+    "Target {Target} refused {Operation} on scheduler {SchedulerName}: {Reason}"
 9013  Error  HttpApiLog.RecorderFailed
     "Recording an operator action with {Recorder} failed"
+9014  Error  HttpApiLog.TargetFailed
+    "Target {Target} did not serve {Operation} on scheduler {SchedulerName}: {Fault}, {Reason}"

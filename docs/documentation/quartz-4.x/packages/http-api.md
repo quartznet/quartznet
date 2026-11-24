@@ -1446,16 +1446,18 @@ POST /quartz-api/schedulers/reporting/triggers/nightly/at-midnight/pause?target=
 | Situation | Status | `detail` |
 |---|---|---|
 | Unknown target, or no such scheduler behind it | `404` | `Unknown scheduler w1/QuartzScheduler` |
-| Nothing answered: an agent offline, a refused connection, a name that did not resolve | `503` | `Target 'w1' is not reachable.` |
+| Nothing was sent: an agent offline, a refused connection, a name that did not resolve, a failed TLS handshake | `503` | `Target 'w1' is not reachable.` |
 | No answer within the transport's timeout | `504` | `Target 'w1' did not answer in time.` A mutating route adds: *The change may or may not have been applied; read before retrying.* |
 | The target refused the host's credential (`401`) | `502` | `Target 'w1' refused this host's credential.` |
 | The target refused the operation (`403`) | `403` | `Target 'w1' refused:` and the target's own detail |
 | The target's scheduler refused (`400` with `Quartz-ExceptionType`) | `400` | As the target answered |
 | A route the target is too old to serve | `501` | Names `NotSupportedException` |
 | The target failed (`5xx`), or answered something unreadable | `502` | `Target 'w1' failed.` |
+| The connection broke after the request went: the answer ended early, was not HTTP, or broke the protocol | `502` | `Target 'w1' failed.` A mutating route adds the *may or may not have been applied* sentence: the target may have run it |
 
-- No `detail` carries the target's address. The host logs `9010` (not reachable), `9011` (timed out) and `9012`
-  (what it answered), naming the target and the reason's class, never the address.
+- No `detail` carries the target's address. The host logs `9010` (not reachable), `9011` (timed out), `9012`
+  (refused, `Warning`) and `9014` (failed or refused the credential, `Error`), naming the target and the reason's
+  class, never the address.
 - None of these names a `Quartz-ExceptionType`.
 - **There is no gateway timeout of its own.** An agent's `OperationTimeout` (30 s) or an HTTP target's `Timeout`
   applies; keep an HTTP target's at or below 30 s. The caller's cancellation reaches the target.

@@ -162,7 +162,7 @@ public sealed class HostHttpApiTest
         using HttpResponseMessage script = await client.PostAsync(Job + "/pause" + Target, content: null);
 
         rebound.StatusCode.Should().Be(HttpStatusCode.Forbidden,
-            "no credential is needed in Unsecured mode, so the Origin check is what stops a DNS-rebinding page");
+            "no credential is needed in Unsecured mode, so the Origin check is what stops a cross-origin page's write");
         script.StatusCode.Should().Be(HttpStatusCode.OK);
     }
 

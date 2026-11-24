@@ -37,8 +37,12 @@ namespace Quartz.AspNetCore;
 /// A browser sends <c>Origin</c> on every cross-origin request and on every <c>POST</c>, and a script, a
 /// pipeline or an agent sends none, so a request without one passes. What this stops is the request a page
 /// the operator happens to visit makes in their name: a plain HTML form posting to <c>…/shutdown</c> needs no
-/// CORS preflight, and the browser attaches whatever cookie it holds for the API's site. It stops a DNS
-/// rebinding page the same way, which matters where no credential is needed at all.
+/// CORS preflight, and the browser attaches whatever cookie it holds for the API's site.
+/// </para>
+/// <para>
+/// It stops cross-origin writes, a DNS rebinding page's included. It does not stop that page's reads: once its
+/// name points at the API, the page's <c>GET</c> is same-origin and carries no <c>Origin</c>. Host filtering —
+/// ASP.NET Core's <c>AllowedHosts</c>, naming the hosts the API is reached by — is what refuses those.
 /// </para>
 /// <para>
 /// The comparison is exact on <c>scheme://host[:port]</c>, ignoring case, as a browser writes the header:

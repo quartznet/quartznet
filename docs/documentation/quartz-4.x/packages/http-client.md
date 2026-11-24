@@ -175,13 +175,17 @@ await scheduler.PauseJob(new JobKey("nightly-report", "reports"));
 
 - `GatewayTarget` is the host's name for the target, sent as `?target=` on every request of the scheduler, its
   [history](#history) and its [events](#events). It is not `Target`, which is this process's own label for the
-  registration and is never sent. It cannot contain `/` or `+`.
+  registration and is never sent. It cannot contain `/`; it may name a merged cluster, `a+b`, as the host lists
+  one.
 - `new HttpScheduler(SchedulerRef, …)` reads the key as the host lists it. A key without a target is the host's
   own scheduler, as the constructor that takes a name.
 - **A success without `Quartz-Target` naming the target is refused** with `HttpClientException`. A host older
   than 4.9 ignores `?target=` and answers for a scheduler of its own with the bare name; the check stops that
   answer being taken for the target's. A failure keeps its own meaning: a `401` or an unmapped route cannot carry
   the header.
+- **The refusal comes with the older host's answer, after it has served the request.** A change — a pause, a
+  trigger-now, a shutdown — has then been made to that host's own scheduler of the name, if it has one. Point a
+  gateway target only at a 4.9 host.
 - The host's statuses for a target that does not serve a request — `503`, `504`, `502`, `403` — are in
   [When the target does not serve it](http-api.md#when-the-target-does-not-serve-it). Each reaches the caller as
   `HttpClientException`, whose `InnerException` is an `HttpRequestException` carrying the status.
