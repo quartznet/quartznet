@@ -171,6 +171,56 @@ public sealed class FiringOccurrenceRecoverySqliteTest
     }
 
     /// <summary>
+    /// The hand-back path keeps the retry too: a retry a shutdown hands back serves the occurrence and
+    /// keeps the attempt it was, rather than the time that attempt was due with its attempts started
+    /// again from <c>0</c> (#4272).
+    /// </summary>
+    [Test]
+    public async Task ARetryHandedBackAtShutdownServesItsOccurrence()
+    {
+        FakeTimeProvider clock = new(due);
+        await using ServiceProvider node = BuildNode("one", clock, handBack: true);
+        IScheduler scheduler = await node.GetRequiredService<ISchedulerFactory>().GetScheduler();
+        AdoJobStoreBase store = (AdoJobStoreBase) node.GetRequiredService<IJobStore>();
+
+        IJobDetail job = JobBuilder.Create<RecordingJob>().WithIdentity(jobKey).StoreDurably().RequestRecovery().Build();
+        await scheduler.ScheduleJob(job, TriggerBuilder.Create(clock)
+            .WithIdentity("hourly", "occurrence")
+            .ForJob(jobKey)
+            .StartAt(due)
+            .WithRetryPolicy(RetryPolicy.Fixed(2, TimeSpan.FromMinutes(5)))
+            .WithSimpleSchedule(schedule => schedule.WithInterval(TimeSpan.FromHours(1)).RepeatForever().WithMisfireInstruction(SimpleTriggerMisfireInstruction.FireNow))
+            .Build());
+
+        // The occurrence fails on time, and its retry is due five minutes later.
+        TriggerFiredBundle first = await Fire(store, clock);
+        using JobExecutionContextImpl context = new(scheduler, first, new RecordingJob());
+        SchedulerInstruction instruction = first.Trigger.ExecutionComplete(context, new JobExecutionException(new InvalidOperationException("boom")));
+        instruction.Should().Be(SchedulerInstruction.RetryTrigger, "the premise: a failure with attempts left is retried");
+        await store.TriggeredJobComplete(first.Trigger, first.JobDetail, instruction);
+
+        clock.Advance(TimeSpan.FromMinutes(5));
+        TriggerFiredBundle retry = await Fire(store, clock);
+        FiringOccurrence original = OccurrenceOf(scheduler, retry);
+        original.Should().Be(new FiringOccurrence(due, FiringOrigin.Schedule) { RetryAttempt = 1 },
+            "the premise: the retry left behind serves the occurrence due at nine");
+
+        // The shutdown cancels the retry and hands it back, and the node runs the recovery itself.
+        await store.FiringComplete(new TriggeredJobCompleteContext
+        {
+            Trigger = retry.Trigger,
+            JobDetail = retry.JobDetail,
+            Instruction = SchedulerInstruction.NoInstruction,
+            Outcome = ExecutionOutcome.Cancelled,
+            HandBackForRecovery = true
+        });
+
+        FiringOccurrence recovered = OccurrenceOf(scheduler, await Fire(store, clock));
+        recovered.Should().Be(original with { Recovering = true },
+            "a hand-back runs that firing again: the same occurrence, for the same reason");
+    }
+
+    /// <summary>
     /// The startup path keeps the attempt too, even once the trigger's next occurrence has passed: the
     /// misfire pass startup recovery runs first zeroes the trigger's own count, so only the fired
     /// row's <c>RETRY_ATTEMPT</c> can say the retry was attempt 1 (#4272).

@@ -3095,7 +3095,7 @@ namespace Quartz.Impl.AdoJobStore
         public bool JobDisallowsConcurrentExecution { get; init; }
         public Quartz.JobKey? JobKey { get; init; }
         public bool JobRequestsRecovery { get; init; }
-        public System.DateTimeOffset OccurrenceTimestamp { get; init; }
+        public System.DateTimeOffset? OccurrenceTimestamp { get; init; }
         public int Priority { get; init; }
         public int RetryAttempt { get; init; }
         public System.DateTimeOffset ScheduleTimestamp { get; init; }

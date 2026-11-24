@@ -345,9 +345,10 @@ public partial class StdAdoDelegate
     {
         List<IOperableTrigger> triggers = [];
 
-        // Only the firing's occurrence, attempt and times are carried over to the recovery trigger's
-        // job data, so there is no reason to build a whole record for them.
-        List<(DateTimeOffset OccurrenceTimestamp, DateTimeOffset FireTimestamp, int RetryAttempt)> triggerData = [];
+        // Only the firing's occurrence and fired time are carried over to the recovery trigger's
+        // job data, so there is no reason to build a whole record for them. The attempt is set on
+        // the trigger as it is built, below.
+        List<(DateTimeOffset OccurrenceTimestamp, DateTimeOffset FireTimestamp)> triggerData = [];
         List<TriggerKey> keys = [];
 
         using (var cmd = PrepareCommand(conn, ReplaceTablePrefix(StdAdoConstants.SqlSelectInstancesRecoverableFiredTriggers)))
@@ -392,11 +393,21 @@ public partial class StdAdoDelegate
                         Priority = priority,
                         MisfireInstructionCode = MisfireInstruction.IgnoreMisfirePolicy,
 
+                        // A replay stands in for the firing the row records, so its previous fire time
+                        // is that firing's occurrence, which a retry's fire leaves unset on a fresh
+                        // trigger — without it the replay would report when it fired instead of the
+                        // occurrence it stands in for (#4272). And the firing may itself have been a
+                        // retry: the row records the attempt it was, so the replay counts it too,
+                        // without a read of the trigger's row — misfire handling may have zeroed that
+                        // count since.
+                        PreviousFireTimeUtc = occurrence,
+                        RetryAttempt = retryAttempt,
+
                         // The replay is limited as the firing it stands in for was (#4081).
                         ExecutionGroup = ReadOptionalString(rs, executionGroupOrdinal)
                     };
 
-                    triggerData.Add((occurrence, firedTime, retryAttempt));
+                    triggerData.Add((occurrence, firedTime));
                     triggers.Add(rcvryTrig);
                     keys.Add(new TriggerKey(trigName, trigGroup));
                 }
@@ -408,7 +419,7 @@ public partial class StdAdoDelegate
         {
             IOperableTrigger trigger = triggers[i];
             TriggerKey key = keys[i];
-            (DateTimeOffset OccurrenceTimestamp, DateTimeOffset FireTimestamp, int RetryAttempt) dataHolder = triggerData[i];
+            (DateTimeOffset OccurrenceTimestamp, DateTimeOffset FireTimestamp) dataHolder = triggerData[i];
 
             // load job data map and transfer information
             JobDataMap jd = await SelectTriggerJobDataMap(conn, key, cancellationToken).ConfigureAwait(false);
@@ -426,18 +437,6 @@ public partial class StdAdoDelegate
             }
 
             trigger.JobDataMap = jd;
-
-            // A replay stands in for the firing the row records, so its previous fire time is that
-            // firing's occurrence, which a retry's fire leaves unset on a fresh trigger — without it the
-            // replay would report when it fired instead of the occurrence it stands in for (#4272).
-            // And the firing may itself have been a retry: the row records the attempt it was, so the
-            // replay counts it too, without a read of the trigger's row — misfire handling may have
-            // zeroed that count since.
-            if (trigger is TriggerBase recoverable)
-            {
-                recoverable.PreviousFireTimeUtc = dataHolder.OccurrenceTimestamp;
-                recoverable.RetryAttempt = dataHolder.RetryAttempt;
-            }
         }
 
         return triggers;
@@ -2699,7 +2698,7 @@ public partial class StdAdoDelegate
             ExecutionGroup = OptionalOrdinal(rs, AdoConstants.ColumnExecutionGroup);
 
             // Looked for rather than demanded, as the columns are: a row a 4.8 node wrote has
-            // neither, and reads as the time the attempt was due with attempt 0 (#4272).
+            // neither, and the occurrence reads as null with the attempt as 0 (#4272).
             OccurrenceTime = OptionalOrdinal(rs, AdoConstants.ColumnOccurrenceTime);
             RetryAttempt = OptionalOrdinal(rs, AdoConstants.ColumnRetryAttempt);
         }
@@ -2737,8 +2736,8 @@ public partial class StdAdoDelegate
             FireTimestamp = GetDateTimeFromDbValue(rs.GetValue(ordinals.FiredTime)) ?? DateTimeOffset.MinValue,
             ScheduleTimestamp = scheduledTime,
             OccurrenceTimestamp = ordinals.OccurrenceTime < 0 || rs.IsDBNull(ordinals.OccurrenceTime)
-                ? scheduledTime
-                : GetDateTimeFromDbValue(rs.GetValue(ordinals.OccurrenceTime)) ?? scheduledTime,
+                ? null
+                : GetDateTimeFromDbValue(rs.GetValue(ordinals.OccurrenceTime)),
             RetryAttempt = ordinals.RetryAttempt < 0 || rs.IsDBNull(ordinals.RetryAttempt)
                 ? 0
                 : Convert.ToInt32(rs.GetValue(ordinals.RetryAttempt), CultureInfo.InvariantCulture),

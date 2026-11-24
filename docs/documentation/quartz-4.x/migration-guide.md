@@ -95,9 +95,11 @@ status script runs at any time; a 4.8 node never touches the table. See
 | `GET …/triggers/upcoming-fires` | HTTP API route `QueryUpcomingFires`, View: `?from=&to=&take=&groupContains=`. Agent operation `QueryUpcomingFires`, allowed by default. Through a host older than 4.9, `HttpScheduler` computes it from the triggers and calendars the host answers with. See [Upcoming fires between two times](packages/http-api.md#upcoming-fires-between-two-times) |
 | Dashboard: the Agenda, `/quartz/agenda` | Every fire in a window, by hour, with *Pause selected* and *Resume selected*. See [Agenda](packages/dashboard.md#agenda) |
 | `QuartzInstrumentation.Instruments.TriggerDue`, `TriggerDueAge` | `quartz.trigger.due`, an `ObservableGauge<long>` in `{trigger}`, and `quartz.trigger.due.age`, an `ObservableGauge<double>` in `s`: the waiting triggers whose fire time has passed, per execution group, and how long the earliest has been due. From the ADO.NET store only; aggregate across nodes with `max`. The thirteenth and fourteenth instruments. See [The due backlog](packages/opentelemetry-integration.md#the-due-backlog) |
-| `FiredTriggerRecord.OccurrenceTimestamp` | `DateTimeOffset`, `init`: the occurrence the firing serves. A row a 4.8 node wrote reads as the time the attempt was due |
+| `FiredTriggerRecord.OccurrenceTimestamp` | `DateTimeOffset?`, `init`: the occurrence the firing serves. `null` for a row a 4.8 node wrote; a recovery then serves the time the attempt was due |
 | `FiredTriggerRecord.RetryAttempt` | `int`, `init`: which attempt at the occurrence the firing was. A row a 4.8 node wrote reads as `0` |
-| `QRTZ_FIRED_TRIGGERS.OCCURRENCE_TIME`, `RETRY_ATTEMPT`, `AdoConstants.ColumnOccurrenceTime`, `AdoConstants.ColumnRetryAttempt` | Nullable columns, from the required `4.9/add_fired_trigger_occurrence_<db>.sql`; `NULL` is the time the attempt was due with attempt `0`. See [Version 4.9](../database/schema-changes.md#version-4-9) |
+| `TriggerFiredUpdate.OccurrenceTimeUtc` | `DateTimeOffset?`, `init`: the occurrence the fire serves, for the fired-trigger row. `null` when neither says, which a recovery reads as the time the attempt was due |
+| `TriggerFiredUpdate.RetryAttempt` | `int`, `init`: which attempt at the occurrence the fire is, for the fired-trigger row |
+| `QRTZ_FIRED_TRIGGERS.OCCURRENCE_TIME`, `RETRY_ATTEMPT`, `AdoConstants.ColumnOccurrenceTime` | Nullable columns, from the required `4.9/add_fired_trigger_occurrence_<db>.sql`; `NULL` is the time the attempt was due with attempt `0`. See [Version 4.9](../database/schema-changes.md#version-4-9) |
 
 | Changed | What to check |
 |---|---|

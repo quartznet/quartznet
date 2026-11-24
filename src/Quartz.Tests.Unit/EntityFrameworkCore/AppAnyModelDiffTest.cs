@@ -40,11 +40,12 @@ namespace Quartz.Tests.Unit.EntityFrameworkCore;
 /// </summary>
 /// <remarks>
 /// <para>
-/// Each difference is one of three. <b>Repaired</b>: AppAny's schema has it wrong, and the move changes it.
+/// Each difference is one of four. <b>Repaired</b>: AppAny's schema has it wrong, and the move changes it.
 /// <b>Converged</b>: harmless, but the database changes it in place, rebuilding no table and narrowing no column,
-/// and the move changes it. <b>Left</b>: harmless, a spelling of the same type, or a change that would narrow a
-/// column or rewrite or rebuild a table, and the move leaves the database as it is; the snapshot holds this
-/// package's model from the move on, so no later migration sees it again.
+/// and the move changes it. <b>Added</b>: columns AppAny 0.6.3 never had, which the move adds. <b>Left</b>:
+/// harmless, a spelling of the same type, or a change that would narrow a column or rewrite or rebuild a table,
+/// and the move leaves the database as it is; the snapshot holds this package's model from the move on, so no later
+/// migration sees it again.
 /// </para>
 /// <para>
 /// The move is written by hand, so this is also what keeps it honest: every operation it makes is one the differ
@@ -84,7 +85,9 @@ public sealed class AppAnyModelDiffTest
         Section(text, "repaired: AppAny's schema has it wrong, and the move changes it",
             differences.Where(d => moved.Contains(d) && IsRepair(d)));
         Section(text, "converged: harmless, changed in place with no table rebuilt and no column narrowed",
-            differences.Where(d => moved.Contains(d) && !IsRepair(d)));
+            differences.Where(d => moved.Contains(d) && !IsRepair(d) && !IsAddedColumn(d)));
+        Section(text, "added: columns AppAny 0.6.3 never had, which the move adds",
+            differences.Where(d => moved.Contains(d) && IsAddedColumn(d)));
         Section(text, "left: harmless, a spelling of the same type, or a change that would narrow a column or rebuild a table",
             differences.Where(d => !moved.Contains(d)));
         Section(text, "completed: CompleteQuartzSchema, which the move ends with",
@@ -107,6 +110,15 @@ public sealed class AppAnyModelDiffTest
         || difference.StartsWith("CreateTable ", StringComparison.Ordinal)
         || difference.Contains(".STR_PROP_", StringComparison.Ordinal)
         || difference.Contains("QRTZ_FIRED_TRIGGERS.INSTANCE_NAME ", StringComparison.Ordinal);
+
+    /// <summary>
+    /// What AppAny 0.6.3 never had: the two fired-trigger columns 4.9 adds, which the move adds.
+    /// The match is case-insensitive because PostgreSQL folds the names to lower case.
+    /// </summary>
+    private static bool IsAddedColumn(string difference) =>
+        difference.StartsWith("AddColumn ", StringComparison.Ordinal)
+        && (difference.Contains("fired_triggers.occurrence_time ", StringComparison.OrdinalIgnoreCase)
+            || difference.Contains("fired_triggers.retry_attempt ", StringComparison.OrdinalIgnoreCase));
 
     private static void Section(StringBuilder text, string heading, IEnumerable<string> lines)
     {

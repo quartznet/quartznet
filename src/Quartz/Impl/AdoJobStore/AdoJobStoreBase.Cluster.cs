@@ -969,7 +969,7 @@ internal abstract partial class AdoJobStoreBase
         SimpleTriggerImpl recoveryTrigger = new SimpleTriggerImpl(timeProvider)
         {
             Key = recoveryKey,
-            StartTimeUtc = firedTrigger.OccurrenceTimestamp,
+            StartTimeUtc = firedTrigger.OccurrenceTimestamp ?? firedTrigger.ScheduleTimestamp,
             JobKey = jobKey,
             MisfireInstructionCode = MisfireInstruction.IgnoreMisfirePolicy,
             Priority = firedTrigger.Priority,
@@ -987,7 +987,7 @@ internal abstract partial class AdoJobStoreBase
 
             // As the recovery a node runs over its own rows at startup writes it, which cluster recovery
             // used to leave out.
-            jobDataMap[SchedulerConstants.FailedJobOriginalTriggerScheduledFireTime] = Convert.ToString(firedTrigger.OccurrenceTimestamp, CultureInfo.InvariantCulture);
+            jobDataMap[SchedulerConstants.FailedJobOriginalTriggerScheduledFireTime] = Convert.ToString(firedTrigger.OccurrenceTimestamp ?? firedTrigger.ScheduleTimestamp, CultureInfo.InvariantCulture);
         }
 
         recoveryTrigger.JobDataMap = jobDataMap;
@@ -995,7 +995,7 @@ internal abstract partial class AdoJobStoreBase
         // A replay stands in for the firing the row records, so its previous fire time is that
         // firing's occurrence, which a retry's fire leaves unset on a fresh trigger — without it the
         // replay would report when it fired instead of the occurrence it stands in for (#4272).
-        recoveryTrigger.PreviousFireTimeUtc = firedTrigger.OccurrenceTimestamp;
+        recoveryTrigger.PreviousFireTimeUtc = firedTrigger.OccurrenceTimestamp ?? firedTrigger.ScheduleTimestamp;
 
         // And the firing may itself have been a retry: the row records the attempt it was, so the
         // replay counts it too, without a read of the trigger's row — misfire handling may have

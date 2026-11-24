@@ -50,8 +50,8 @@ editing.
 | 4.0 / 4.1 | 4.3+ | [4.2](#version-4-2), then [4.3](#version-4-3) — both **mandatory** |
 | 4.2 | 4.3+ | [4.3](#version-4-3) — **mandatory**; then [4.6](#version-4-6) for 4.6+ |
 | 4.3 | 4.4 / 4.5 | Nothing mandatory. [4.4](#version-4-4) only with `UseExecutionHistory()` |
-| 4.3 / 4.4 / 4.5 | 4.6+ | [4.6](#version-4-6): the version, interrupt and misfire threshold columns **mandatory**, the history indexes optional; [4.4](#version-4-4) only with `UseExecutionHistory()`; then [4.7](#version-4-7) for 4.7+ |
-| 4.6 | 4.7+ | [4.7](#version-4-7): the fixed-delay column, **mandatory** |
+| 4.3 / 4.4 / 4.5 | 4.6+ | [4.6](#version-4-6): the version, interrupt and misfire threshold columns **mandatory**, the history indexes optional; [4.4](#version-4-4) only with `UseExecutionHistory()`; then [4.7](#version-4-7) for 4.7+; then [4.9](#version-4-9) for 4.9+ |
+| 4.6 | 4.7+ | [4.7](#version-4-7): the fixed-delay column, **mandatory**; then [4.9](#version-4-9) for 4.9+ |
 | 4.7 / 4.8 | 4.9+ | [4.9](#version-4-9): the occurrence columns, **mandatory**; the trigger status table only with `UseExecutionHistory()` |
 
 ## Upgrading to 4.x is mandatory

@@ -77,9 +77,10 @@ public sealed record FiredTriggerRecord
     /// <summary>
     /// The occurrence the firing serves, for a row a 4.9 node wrote: a misfire's original fire time,
     /// else the previous fire time the fire set or left alone. A row a 4.8 node wrote has none, and
-    /// reads as <see cref="ScheduleTimestamp" />, the time the attempt was due (#4272).
+    /// reads as <see langword="null" />; a recovery serves <see cref="ScheduleTimestamp" /> then, the
+    /// time the attempt was due (#4272).
     /// </summary>
-    public DateTimeOffset OccurrenceTimestamp { get; init; }
+    public DateTimeOffset? OccurrenceTimestamp { get; init; }
 
     /// <summary>
     /// Which attempt at the occurrence the firing was, for a row a 4.9 node wrote. A row a 4.8 node
