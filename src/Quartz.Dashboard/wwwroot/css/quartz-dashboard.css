@@ -2539,6 +2539,12 @@ body{
     overflow-x: auto;
 }
 
+/* A browser makes a scroller a Tab stop; it gets the ring the dashboard's buttons and links have, not the browser's. */
+.qz-table-scroll:focus-visible {
+    outline: 2px solid var(--qz-color-primary);
+    outline-offset: 2px;
+}
+
 /* The Overview's Needs attention: the failing jobs beside the day's runs where both fit, else stacked. */
 .qz-needs-attention-columns {
     display: grid;
@@ -2998,6 +3004,14 @@ body{
 
     .qz-action-log-message {
         min-width: 10rem;
+    }
+}
+
+/* Below 1440 px the table scrolls anyway, so the message keeps a readable measure there and is scrolled to: at 10rem
+   only 50 px of it showed at 1024 px, and a refusal wrapped to seven lines. Status, before it, still shows at 1024 px. */
+@media (max-width: 1439px) {
+    .qz-action-log-message {
+        min-width: 15rem;
     }
 }
 
