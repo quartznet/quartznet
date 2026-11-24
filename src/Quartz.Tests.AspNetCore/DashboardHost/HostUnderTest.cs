@@ -55,7 +55,7 @@ internal sealed class HostUnderTest : IAsyncDisposable
     /// <summary>
     /// A host configured with <paramref name="settings" />, not yet started: the first client starts it.
     /// </summary>
-    public static HostUnderTest Create(IReadOnlyDictionary<string, string?> settings)
+    public static HostUnderTest Create(IReadOnlyDictionary<string, string?> settings, Action<IServiceCollection>? services = null)
     {
         RecordingLoggerProvider logs = new();
 
@@ -67,6 +67,11 @@ internal sealed class HostUnderTest : IAsyncDisposable
             }
 
             builder.ConfigureLogging(logging => logging.AddProvider(logs));
+
+            if (services is not null)
+            {
+                builder.ConfigureServices(services);
+            }
         });
 
         return new HostUnderTest(factory, logs);
