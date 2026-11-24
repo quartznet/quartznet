@@ -30,9 +30,10 @@
         <ErrorAlert Message="@_error" OnRetry="LoadDataAsync" />
     }
 
-    <div class="qz-table-scroll">
-    @* A fixed layout, every column sized but Job and Trigger, which take the rest: never wider than its card,
-       whatever keys run. The actions column is as wide as its buttons, two of them when Interrupt is offered. *@
+    <div class="qz-table-scroll qz-executing-scroll">
+    @* A fixed layout, every column sized but Job and Trigger, which take the rest and never less than 12rem each:
+       below that the table scrolls inside this box, whose width also decides the stylesheet's wider steps. The actions
+       column is as wide as its buttons, two of them when Interrupt is offered. *@
     <table class="qz-table qz-executing-table @(ShowInterrupt ? "qz-executing-table-interrupt" : null)" data-testid="executing-table">
         <thead>
             <tr>
