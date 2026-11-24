@@ -427,7 +427,7 @@ internal static class SchedulerEndpoints
             return broker;
         }
 
-        ISchedulerEventSource? source = resolution.IsWindow ? null : SchedulerEventLookup.For(httpContext.RequestServices, resolution.Ref.Key);
+        ISchedulerEventSource? source = resolution.IsWindow ? null : SchedulerEventLookup.ForTargeted(httpContext.RequestServices, resolution.Ref);
         return source
                ?? throw new NotServedException(new NotSupportedException(
                    $"The scheduler '{resolution.Ref.Key}' has no event stream here: a window onto a store attached to this "
@@ -830,13 +830,20 @@ internal static class SchedulerEndpoints
     {
         IServiceProvider services = httpContext.RequestServices;
 
-        // A scheduler reached through a target's proxy keeps its history where the target does, which the
-        // lookup reads by the key. Everything else — a scheduler of this process, a window, whether or not the
-        // request named the window's target — is read by its name, as before 4.9: a window's history is its
-        // store's, refused where the store keeps none, and that is decided by name.
-        string schedulerKey = target is not null && scheduler is IProxyScheduler
-            ? new SchedulerRef(scheduler.SchedulerName, target).Key
-            : scheduler.SchedulerName;
+        // A scheduler reached through a target's proxy keeps its history where the target does, read by the
+        // name and the target as a pair, so a scheduler of this process named like the joined key is not read
+        // instead. Everything else — a scheduler of this process, a window, whether or not the request named the
+        // window's target — is read by its name, as before 4.9: a window's history is its store's, refused where
+        // the store keeps none, and that is decided by name.
+        if (target is not null && scheduler is IProxyScheduler { Target: { } proxyTarget })
+        {
+            SchedulerRef pair = new(scheduler.SchedulerName, proxyTarget);
+            return ExecutionHistoryLookup.TryFindTargeted(services, pair, out IExecutionHistoryStore? targeted, out string? targetRefusal)
+                ? targeted ?? throw new SchedulerException(targetRefusal!)
+                : throw new SchedulerException($"The target '{proxyTarget}', which '{pair.Key}' is reached through, keeps no execution history this process can read.");
+        }
+
+        string schedulerKey = scheduler.SchedulerName;
         return ExecutionHistoryLookup.Find(services, services.GetService<AttachedStores>(), shared, schedulerKey, out _, out string? refusal)
             ?? throw new SchedulerException(refusal!);
     }

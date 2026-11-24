@@ -72,9 +72,9 @@ internal static class SchedulerEventLookup
 
         if (key.Target is not null)
         {
-            if (serviceProvider.GetService<SchedulerTargets>()?.Find(key.Target) is { } target)
+            if (serviceProvider.GetService<SchedulerTargets>()?.Find(key.Target) is not null)
             {
-                return target.Events?.Invoke(serviceProvider, schedulerName);
+                return ForTargeted(serviceProvider, key);
             }
 
             // A key spelled like a local scheduler whose name contains '/': the bare rule, by the whole key.
@@ -99,5 +99,24 @@ internal static class SchedulerEventLookup
         }
 
         return serviceProvider.GetService<ISchedulerEventSource>();
+    }
+
+    /// <summary>
+    /// The events of the scheduler a registered target holds under <paramref name="key" />'s name, read as the
+    /// pair with no joined-key reading first, or <see langword="null" /> when no target of that name is
+    /// registered or it carries no stream — a window.
+    /// </summary>
+    /// <remarks>
+    /// For a caller given the target and the name apart, as <see cref="SchedulerLookup.Targeted" /> resolves
+    /// them: a scheduler of this process named like the joined key is not the one it asked for.
+    /// </remarks>
+    public static ISchedulerEventSource? ForTargeted(IServiceProvider serviceProvider, SchedulerRef key)
+    {
+        ArgumentNullException.ThrowIfNull(serviceProvider);
+        ArgumentNullException.ThrowIfNull(key);
+
+        return key.Target is not null && serviceProvider.GetService<SchedulerTargets>()?.Find(key.Target) is { } target
+            ? target.Events?.Invoke(serviceProvider, key.SchedulerName)
+            : null;
     }
 }

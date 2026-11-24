@@ -101,6 +101,25 @@ public sealed class HostHttpApiTest
             "the host never logs a token, and an address can carry one");
     }
 
+    /// <summary>
+    /// A token in the address is refused even beside a valid bearer: a failure further in is logged with the
+    /// request's URL, query and all, and the value must reach no log.
+    /// </summary>
+    [Test]
+    public async Task ATokenInTheAddressIsRefusedBesideAValidBearer()
+    {
+        await using HostUnderTest host = HostUnderTest.WithTokens(Settings());
+        using HttpClient script = Script(host, HostUnderTest.OperatorToken);
+
+        using HttpResponseMessage read = await script.GetAsync(Jobs + Target + "&t=" + HostUnderTest.AdministratorToken);
+        using HttpResponseMessage failing = await script.PostAsync("/quartz-api/schedulers/nobody/start" + Target + "&t=" + HostUnderTest.AdministratorToken, content: null);
+
+        read.StatusCode.Should().Be(HttpStatusCode.Unauthorized, "the API never reads a token from the address, and refuses one that is there");
+        failing.StatusCode.Should().Be(HttpStatusCode.Unauthorized);
+        host.Logs.Entries.Should().NotContain(entry => entry.Message.Contains(HostUnderTest.AdministratorToken, StringComparison.Ordinal),
+            "the host never logs a token, and an address can carry one");
+    }
+
     [Test]
     public async Task AnUnknownBearerIsRefusedAndLoggedWithoutItsValue()
     {

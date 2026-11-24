@@ -82,6 +82,35 @@ internal static class SchedulerLookup
             return Untargeted(repository, windows, read.SchedulerName);
         }
 
+        return Targeted(repository, windows, key);
+    }
+
+    /// <summary>
+    /// The scheduler named <paramref name="key" />'s name behind its target, the two read as the pair they are,
+    /// or <see langword="null" /> when nothing is.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// For a caller that was given the target and the name apart — the HTTP API's <c>?target=</c> beside the
+    /// route's name — rather than one key. <see cref="Resolve" /> reads a joined key first, so that a scheduler
+    /// of this process named <c>w1/X</c> is reached by that spelling; here the caller said which target it
+    /// meant, a policy has been asked about that target, and a local scheduler that happens to be named like
+    /// the joined key is not it.
+    /// </para>
+    /// <para>
+    /// The target matches ignoring case, as everywhere; the resolution carries the target's own spelling.
+    /// </para>
+    /// </remarks>
+    /// <exception cref="ArgumentException"><paramref name="key" /> names no target.</exception>
+    public static SchedulerResolution? Targeted(ISchedulerRepository repository, SchedulerWindowRegistry? windows, SchedulerRef key)
+    {
+        ArgumentNullException.ThrowIfNull(repository);
+        ArgumentNullException.ThrowIfNull(key);
+        if (key.Target is null)
+        {
+            throw new ArgumentException("The key names no target.", nameof(key));
+        }
+
         foreach (IScheduler scheduler in repository.LookupByName(key.SchedulerName))
         {
             if (scheduler is IProxyScheduler proxy)

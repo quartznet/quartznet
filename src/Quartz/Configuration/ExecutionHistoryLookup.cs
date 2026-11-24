@@ -103,20 +103,10 @@ internal static class ExecutionHistoryLookup
 
         if (key.Target is not null)
         {
-            SchedulerTargets? targets = services.GetService<SchedulerTargets>();
-            if (targets?.Find(key.Target) is { } target)
+            if (TryFindTargeted(services, key, out IExecutionHistoryStore? targeted, out refusal))
             {
                 schedulerName = key.SchedulerName;
-
-                if (target.History?.Invoke(services, schedulerName) is { } history)
-                {
-                    return history;
-                }
-
-                refusal = target.Origin == SchedulerOrigin.Window
-                    ? WindowWithoutHistory(target.Name, schedulerName)
-                    : $"The target '{target.Name}', which '{schedulerKey}' is reached through, keeps no execution history this process can read.";
-                return null;
+                return targeted;
             }
 
             // A key spelled like a local scheduler whose name contains '/', or a target nothing has
@@ -146,6 +136,41 @@ internal static class ExecutionHistoryLookup
         }
 
         return keyed.GetKeyedService(typeof(IExecutionHistoryStore), schedulerName) as IExecutionHistoryStore ?? shared;
+    }
+
+    /// <summary>
+    /// The history of the scheduler a registered target holds under <paramref name="key" />'s name, read as the
+    /// pair, with no joined-key reading first: <see langword="false" /> when no target of that name is registered.
+    /// </summary>
+    /// <remarks>
+    /// For a caller given the target and the name apart, as <see cref="SchedulerLookup.Targeted" /> resolves
+    /// them: a scheduler of this process named like the joined key is not the one it asked for.
+    /// </remarks>
+    /// <param name="services">The container, or a scope of it.</param>
+    /// <param name="key">The scheduler's name and the target it is behind.</param>
+    /// <param name="store">The target's store for the scheduler, or <see langword="null" /> when it keeps none.</param>
+    /// <param name="refusal">Why there is no store, when the target keeps none.</param>
+    public static bool TryFindTargeted(IServiceProvider services, SchedulerRef key, out IExecutionHistoryStore? store, out string? refusal)
+    {
+        ArgumentNullException.ThrowIfNull(services);
+        ArgumentNullException.ThrowIfNull(key);
+
+        store = null;
+        refusal = null;
+        if (key.Target is null || services.GetService<SchedulerTargets>()?.Find(key.Target) is not { } target)
+        {
+            return false;
+        }
+
+        store = target.History?.Invoke(services, key.SchedulerName);
+        if (store is null)
+        {
+            refusal = target.Origin == SchedulerOrigin.Window
+                ? WindowWithoutHistory(target.Name, key.SchedulerName)
+                : $"The target '{target.Name}', which '{key.Key}' is reached through, keeps no execution history this process can read.";
+        }
+
+        return true;
     }
 
     private static string WindowWithoutHistory(string target, string schedulerName)

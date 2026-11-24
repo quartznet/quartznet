@@ -237,7 +237,13 @@ internal sealed class EndpointHelper
         Func<SchedulerResolution, ValueTask<IResult>> action)
     {
         SchedulerRef key = new(schedulerName, target);
-        SchedulerResolution? resolved = SchedulerLookup.Resolve(schedulerRepository, context.RequestServices.GetService<SchedulerWindowRegistry>(), key);
+        SchedulerWindowRegistry? windows = context.RequestServices.GetService<SchedulerWindowRegistry>();
+
+        // A target given in the query is the pair the policies were asked about: a scheduler of this process
+        // named like the joined key is not it, so the pair resolves as given rather than as one key.
+        SchedulerResolution? resolved = target is null
+            ? SchedulerLookup.Resolve(schedulerRepository, windows, key)
+            : SchedulerLookup.Targeted(schedulerRepository, windows, key);
         if (resolved is null)
         {
             // Still "Unknown scheduler", which HttpScheduler reads as a scheduler no request can reach.
