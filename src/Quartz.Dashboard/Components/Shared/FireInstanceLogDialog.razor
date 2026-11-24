@@ -116,7 +116,7 @@
     @if (LogText.Length > 0)
     {
         <div class="qz-log-follow" data-testid="log-scroller" @ref="_scroller">
-            <pre class="qz-execution-log" tabindex="0" aria-label="Log lines" data-testid="log-lines">@LogText</pre>
+            <pre class="qz-execution-log" tabindex="0" aria-label="Log lines" data-testid="log-lines" @ref="_logLines">@LogText</pre>
         </div>
     }
 
@@ -202,6 +202,7 @@
     private long _newWhilePaused;
 
     private ElementReference _scroller;
+    private ElementReference _logLines;
     private bool _observing;
     private int _observer;
     private DotNetObjectReference<FireInstanceLogDialog>? _self;
@@ -264,26 +265,29 @@
         }
     }
 
-    private bool ShowsJumpToLatest => _paused && _outcome == Outcome.None && _phase == Phase.Following;
+    /// <summary>
+    /// Whether Jump to latest is offered: for as long as the reader is scrolled up, the run's end included. It goes only
+    /// when the reader is back on the newest line, by the button, which moves focus to the log first, or by scrolling,
+    /// so it never takes focus out of the dialog with it.
+    /// </summary>
+    private bool ShowsJumpToLatest => _paused && LogText.Length > 0;
 
     private string UpdatedAt => _updatedAt is { } at
         ? Scheduler.ConvertToSelectedTimeZone(at).ToString("HH:mm:ss", CultureInfo.InvariantCulture)
         : string.Empty;
 
     /// <summary>
-    /// The run time: as the history recorded it once the run has ended and its row is found, else counted to the read
-    /// that saw it end, else to now.
+    /// The run time, as Currently Executing's table writes it: as the history recorded it once the run has ended and its
+    /// row is found, else counted to the read that saw it end, else to now. One format throughout, so the header does
+    /// not jump as the run ends.
     /// </summary>
     private string RunTime
     {
         get
         {
-            if (_recordedDuration is { } recorded && recorded > TimeSpan.Zero)
-            {
-                return DisplayValueHelper.FormatRunDuration(recorded);
-            }
-
-            TimeSpan runTime = (_endedAt ?? Clock.GetUtcNow()) - Firing.FireTimeUtc;
+            TimeSpan runTime = _recordedDuration is { } recorded && recorded > TimeSpan.Zero
+                ? recorded
+                : (_endedAt ?? Clock.GetUtcNow()) - Firing.FireTimeUtc;
             return DisplayValueHelper.FormatClock(runTime < TimeSpan.Zero ? TimeSpan.Zero : runTime);
         }
     }
@@ -596,7 +600,8 @@
     }
 
     /// <summary>
-    /// Scrolls to the newest line and follows again.
+    /// Scrolls to the newest line and follows again, with focus on the log: the button goes as the dialog follows again,
+    /// and focus must not go with it to the page behind the dialog.
     /// </summary>
     private async Task JumpToLatestAsync()
     {
@@ -605,6 +610,7 @@
         try
         {
             await JS.InvokeVoidAsync("quartzDashboardLogFollow.toLatest", _scroller);
+            await _logLines.FocusAsync(preventScroll: true);
         }
         catch (JSException)
         {

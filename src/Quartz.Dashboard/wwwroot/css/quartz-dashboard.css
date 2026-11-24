@@ -1438,6 +1438,11 @@ body{
     flex-shrink: 0;
 }
 
+/* The title wraps between words, and inside a key with no break, such as a TriggerJob key's digits, as the last resort. */
+.qz-log-dialog > h3 {
+    overflow-wrap: anywhere;
+}
+
 .qz-log-dialog .qz-log-dialog-meta {
     margin: var(--qz-space-xs) 0;
     overflow-wrap: anywhere;
@@ -1506,9 +1511,15 @@ body{
     outline-offset: 2px;
 }
 
-/* Currently Executing: no sideways scroll at 1440 px. Nine columns on the small padding; a key wraps where the key
-   itself breaks, after the group's dot and between words, never inside one; the times keep one line; Show log and
-   Interrupt sit side by side. */
+/* Currently Executing: never wider than its card, whatever keys run and whether or not the page has a scrollbar. A
+   fixed layout sizes every column but the job's and the trigger's, which take what is left: a key wraps where it breaks,
+   after the group's dot and between words, and inside a run with no break, such as a TriggerJob key's digits, as the
+   last resort. The actions never shrink: as wide as one button, or two side by side when Interrupt is offered. The fire
+   time keeps one line, and two whole ones below 1280 px. */
+.qz-executing-table {
+    table-layout: fixed;
+}
+
 .qz-executing-table th,
 .qz-executing-table td {
     padding-left: var(--qz-space-sm);
@@ -1516,21 +1527,59 @@ body{
 }
 
 .qz-executing-table td.qz-col-key .qz-key-badge {
-    max-width: 16rem;
+    max-width: 100%;
 }
 
 .qz-executing-table td.qz-col-key .qz-key-badge-value {
     white-space: normal;
-    overflow-wrap: break-word;
+    overflow-wrap: anywhere;
     text-overflow: clip;
 }
 
-.qz-executing-table th.qz-col-group {
+.qz-executing-table .qz-col-node {
+    width: 6.5rem;
+    overflow-wrap: anywhere;
+}
+
+.qz-executing-table .qz-col-group {
+    width: 7rem;
+    white-space: normal;
+    overflow-wrap: anywhere;
+}
+
+.qz-executing-table .qz-col-fired {
+    width: 11.5rem;
+    white-space: nowrap;
+}
+
+.qz-executing-table .qz-col-runtime {
+    width: 5.25rem;
+}
+
+.qz-executing-table td.qz-col-runtime .qz-state-indicator {
     white-space: normal;
 }
 
-.qz-executing-table td.qz-col-time {
+.qz-executing-table .qz-col-progress {
+    width: 6rem;
+}
+
+.qz-executing-table .qz-col-history {
+    width: 5.25rem;
     white-space: nowrap;
+}
+
+.qz-executing-table .qz-col-actions {
+    width: 6.75rem;
+    white-space: nowrap;
+}
+
+.qz-executing-table.qz-executing-table-interrupt .qz-col-actions {
+    width: 13rem;
+}
+
+.qz-executing-table td.qz-col-actions .qz-actions {
+    flex-wrap: nowrap;
 }
 
 .qz-executing-table .qz-executing-fired > span {
@@ -1538,19 +1587,15 @@ body{
     white-space: nowrap;
 }
 
-.qz-executing-table td.qz-col-actions .qz-actions {
-    flex-wrap: nowrap;
-}
-
 /* The execution group under the node, where its own column has gone. */
 .qz-executing-table .qz-executing-group-inline {
     display: none;
     font-size: var(--qz-font-size-xs);
+    overflow-wrap: anywhere;
 }
 
-/* Narrower than 1280 px: the fire time takes two lines, its date and its time each whole; the buttons may stack; and
-   the execution group moves under the node, as History lets its node column go below 1600 px. */
-@media (max-width: 1279px) {
+/* Below 1600 px the execution group moves under the node, as History lets its node column go there. */
+@media (max-width: 1599px) {
     .qz-executing-table .qz-col-group {
         display: none;
     }
@@ -1558,9 +1603,17 @@ body{
     .qz-executing-table .qz-executing-group-inline {
         display: block;
     }
+}
 
-    .qz-executing-table td.qz-col-time {
+/* Below 1280 px the fire time takes two lines, its date and its time each whole, and the buttons stack. */
+@media (max-width: 1279px) {
+    .qz-executing-table .qz-col-fired {
+        width: 8rem;
         white-space: normal;
+    }
+
+    .qz-executing-table.qz-executing-table-interrupt .qz-col-actions {
+        width: 6.75rem;
     }
 
     .qz-executing-table td.qz-col-actions .qz-actions {

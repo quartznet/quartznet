@@ -274,6 +274,7 @@ public sealed class CurrentlyExecutingLogTest
         GivenLogs(Running(["line 1", "line 2"], next: 2), Running(["line 3"], next: 3));
         IRenderedComponent<CurrentlyExecuting> page = Open();
         page.WaitForAssertion(() => Lines(page).Should().HaveCount(2));
+        string logRegion = page.Find("[data-testid=log-lines]").GetAttribute("blazor:elementreference")!;
         context.JSInterop.Invocations.Should().Contain(invocation => invocation.Identifier == "quartzDashboardLogFollow.observe",
             "the browser says when the reader scrolls off the newest line");
         page.FindAll("[data-testid=log-jump]").Should().BeEmpty("a reader on the newest line has nothing to jump to");
@@ -298,6 +299,81 @@ public sealed class CurrentlyExecutingLogTest
             Status(page).Should().Be("Following · 3 lines · updated 14:23:02");
             page.FindAll("[data-testid=log-jump]").Should().BeEmpty();
         });
+
+        // The button goes as the dialog follows again; focus goes to the log, never to the page behind the dialog.
+        JSRuntimeInvocation focus = context.JSInterop.Invocations.Last(invocation => invocation.Identifier == "Blazor._internal.domWrapper.focus");
+        ((ElementReference) focus.Arguments[0]!).Id.Should().Be(logRegion, "the log region, which scrolls with the arrow keys");
+    }
+
+    /// <summary>
+    /// A run that ends while the reader is scrolled up keeps Jump to latest: removing it with the reader's focus on it
+    /// would drop focus to the page behind the dialog, where Escape no longer closes it.
+    /// </summary>
+    [Test]
+    public async Task JumpToLatestStaysWhenTheRunEndsWhileTheReaderIsUp()
+    {
+        GivenLogs(Running(["line 1", "line 2"], next: 2), NotRunning("node-a", next: 2));
+        GivenExecution(TestData.Dashboard.HistoryEntry(TimeSpan.FromSeconds(20)) with { EntryId = "entry-9", Log = "line 1\nline 2\nline 3" });
+        IRenderedComponent<CurrentlyExecuting> page = Open();
+        page.WaitForAssertion(() => Lines(page).Should().HaveCount(2));
+        string logRegion = page.Find("[data-testid=log-lines]").GetAttribute("blazor:elementreference")!;
+        IRenderedComponent<FireInstanceLogDialog> dialog = page.FindComponent<FireInstanceLogDialog>();
+        await dialog.InvokeAsync(() => dialog.Instance.OnFollowingChanged(following: false));
+
+        context.Clock.Advance(TimeSpan.FromSeconds(2));
+
+        page.WaitForAssertion(() =>
+        {
+            Status(page).Should().StartWith("The run ended. This is its log as recorded.");
+            page.FindAll("[data-testid=log-jump]").Should().ContainSingle("the reader is still up, and may have focus on the button");
+        });
+
+        page.Find("[data-testid=log-jump]").Click();
+
+        page.WaitForAssertion(() => page.FindAll("[data-testid=log-jump]").Should().BeEmpty());
+        JSRuntimeInvocation focus = context.JSInterop.Invocations.Last(invocation => invocation.Identifier == "Blazor._internal.domWrapper.focus");
+        ((ElementReference) focus.Arguments[0]!).Id.Should().Be(logRegion, "focus goes to the log, which now holds the run's log as recorded");
+    }
+
+    /// <summary>
+    /// 1: keys with no break in them, as TriggerJob names its triggers, never make the table wider than its card. The
+    /// layout is fixed, every column but Job and Trigger is sized, a key wraps inside a run as the last resort, and the
+    /// actions never shrink. bUnit has no layout, so the rules are held here and measured in a browser.
+    /// </summary>
+    [Test]
+    public void LongKeysCannotWidenTheTable()
+    {
+        GivenRows(Enumerable.Range(0, 7).Select(i => new FireInstanceDto(
+            "fire-" + i,
+            new TriggerKeyDto("DEFAULT", "MT_641348493038929258" + i),
+            new JobKeyDto("DEFAULT", "MT_job_641348493038929258" + i),
+            "node-a",
+            FireInstanceState.Executing,
+            TestData.Dashboard.FiredAt,
+            TestData.Dashboard.FiredAt,
+            ExecutionGroup: null)).ToArray());
+        IRenderedComponent<CurrentlyExecuting> page = context.Render<CurrentlyExecuting>();
+
+        page.WaitForAssertion(() => page.FindAll("tbody tr").Should().HaveCount(7));
+        IElement table = page.Find("[data-testid=executing-table]");
+        table.ClassList.Should().Contain(["qz-executing-table", "qz-executing-table-interrupt"]);
+        table.QuerySelectorAll("thead th").Select(th => th.ClassName).Should().Equal(
+            "qz-col-key", "qz-col-key", "qz-col-node", "qz-col-group", "qz-col-fired", "qz-col-runtime", "qz-col-progress", "qz-col-history", "qz-col-actions");
+        page.FindAll("tbody td.qz-col-key .qz-key-badge-value").Should().HaveCount(14);
+
+        string css = File.ReadAllText(HistoryPageTest.DashboardStylesheet());
+        css.Should().MatchRegex(@"\.qz-executing-table \{[^}]*table-layout: fixed;", "a fixed layout: content cannot push a column wider");
+        foreach (string column in (string[]) ["node", "group", "fired", "runtime", "progress", "history", "actions"])
+        {
+            css.Should().MatchRegex(@"\.qz-executing-table \.qz-col-" + column + @" \{[^}]*width: [0-9.]+rem;",
+                $"every column but Job and Trigger has its own width, so those two absorb the rest ({column})");
+        }
+
+        css.Should().MatchRegex(@"\.qz-executing-table td\.qz-col-key \.qz-key-badge-value \{[^}]*overflow-wrap: anywhere;",
+            "a run with no break wraps inside itself as the last resort");
+        css.Should().MatchRegex(@"\.qz-executing-table \.qz-col-actions \{[^}]*white-space: nowrap;", "the actions never shrink");
+        css.Should().MatchRegex(@"\.qz-executing-table\.qz-executing-table-interrupt \.qz-col-actions \{[^}]*width: [0-9.]+rem;",
+            "two buttons side by side have the width of two");
     }
 
     /// <summary>B4: an answer that says the reader is behind is followed at once, at most four more times a tick.</summary>
@@ -394,7 +470,8 @@ public sealed class CurrentlyExecutingLogTest
             page.Find("[data-testid=log-execution-link]").GetAttribute("href").Should().Be("quartz/history/entry-9");
             Lines(page).Should().Equal(["Step 1 of 20", "Step 19 of 20", "Step 20 of 20"],
                 "the line logged after the last read went with the firing's buffer, and the row has it");
-            page.Find("[data-testid=log-meta]").TextContent.Should().Contain("run time 20.17 s", "the run time the row recorded");
+            page.Find("[data-testid=log-meta]").TextContent.Should().Contain("run time 00:00:20",
+                "the run time the row recorded, in the clock the running header and the table use, so the header does not jump");
         });
     }
 
