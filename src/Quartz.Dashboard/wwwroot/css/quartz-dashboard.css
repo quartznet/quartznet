@@ -1486,7 +1486,7 @@ body{
     vertical-align: bottom;
 }
 
-/* A job whose latest occurrences failed for good, and how many in a row. The deeper red of the pair, which
+/* A job or trigger whose latest occurrences failed for good, and how many in a row. The deeper red of the pair, which
    reaches AA on its tint in both themes (5.3:1 light, 5.8:1 dark), and named on a table cell's link too, whose
    own colour would otherwise win. */
 .qz-failing-badge,
@@ -1847,15 +1847,50 @@ body{
     column-gap: var(--qz-space-xs);
 }
 
+/* The last run, as wide as a fire time and wrapping as one does: the result, the duration and how long ago each a
+   piece of its own, and the failing badge on a line under them. Under the state instead once the listing is too
+   narrow for both columns, as the schedule goes under the key. */
+.qz-triggers-table th.qz-col-last-run,
+.qz-triggers-table td.qz-col-last-run,
+.qz-triggers-table .qz-last-run-inline {
+    font-size: var(--qz-font-size-sm);
+    white-space: normal;
+}
+
+.qz-triggers-table th.qz-col-last-run,
+.qz-triggers-table td.qz-col-last-run {
+    width: 132px;
+    padding-left: var(--qz-space-sm);
+    padding-right: var(--qz-space-sm);
+}
+
+.qz-triggers-table .qz-last-run-inline {
+    display: none;
+    margin-top: var(--qz-space-xs);
+}
+
+.qz-trigger-failing {
+    margin-top: 2px;
+}
+
+/* A listing with a last-run column needs 132px more at every step, so each step below comes 140px earlier with
+   it than without: a scheduler whose history keeps no trigger status lays out as 4.8 did. */
 @container qz-triggers-listing (min-width: 1440px) {
-    .qz-triggers-table th.qz-col-actions,
-    .qz-triggers-table td.qz-col-actions {
+    .qz-triggers-table:not(.qz-with-last-run) th.qz-col-actions,
+    .qz-triggers-table:not(.qz-with-last-run) td.qz-col-actions {
         width: 340px;
     }
 }
 
-/* Every column needs 1272px with the key and the schedule at their floors. The trigger's own page shows what
-   each step hides. */
+@container qz-triggers-listing (min-width: 1560px) {
+    .qz-triggers-table.qz-with-last-run th.qz-col-actions,
+    .qz-triggers-table.qz-with-last-run td.qz-col-actions {
+        width: 340px;
+    }
+}
+
+/* Every column needs 1272px with the key and the schedule at their floors, 1404px with the last run. The trigger's
+   own page shows what each step hides. */
 @container qz-triggers-listing (max-width: 1299px) {
     .qz-triggers-table .qz-col-details,
     .qz-triggers-table .qz-col-execution-group {
@@ -1863,9 +1898,33 @@ body{
     }
 }
 
+@container qz-triggers-listing (max-width: 1439px) {
+    .qz-triggers-table.qz-with-last-run .qz-col-details,
+    .qz-triggers-table.qz-with-last-run .qz-col-execution-group {
+        display: none;
+    }
+}
+
 @container qz-triggers-listing (max-width: 1079px) {
     .qz-triggers-table .qz-col-previous-fire {
         display: none;
+    }
+}
+
+@container qz-triggers-listing (max-width: 1209px) {
+    .qz-triggers-table.qz-with-last-run .qz-col-previous-fire {
+        display: none;
+    }
+}
+
+/* The last run never goes: it is what says whether the schedule still works. It moves under the state. */
+@container qz-triggers-listing (max-width: 1079px) {
+    .qz-triggers-table.qz-with-last-run .qz-col-last-run {
+        display: none;
+    }
+
+    .qz-triggers-table.qz-with-last-run .qz-last-run-inline {
+        display: block;
     }
 }
 

@@ -844,6 +844,163 @@ public class TriggersPageTest
         page.FindAll(".qz-filter-apply").Should().ContainSingle("filtering is reading, not writing");
     }
 
+    // ---------------------------------------------------------------------------------------------
+    // Each trigger's last run (#4243)
+    // ---------------------------------------------------------------------------------------------
+
+    /// <summary>
+    /// A row says what its trigger's last run achieved, how long it took and how long ago it fired, with the fire
+    /// time, the node and the summary on hover; and how many of its occurrences in a row have failed for good, linking
+    /// to those failures.
+    /// </summary>
+    [Test]
+    public void ARowShowsItsTriggersLastRunAndHowManyOccurrencesInARowFailed()
+    {
+        context.SchedulerState.SelectedTimeZoneId = "America/Chicago";
+        DateTimeOffset now = context.Clock.GetUtcNow();
+        GivenTriggers(TestData.Dashboard.TriggerHeaders("nightly", 2));
+        GivenRunStatuses(
+            RunStatus("trigger-1", now.AddMinutes(-2), JobRunResult.Failed) with
+            {
+                LastDuration = TimeSpan.FromSeconds(1.5),
+                LastSchedulerInstanceId = "node-a",
+                LastSummary = "3 invoices did not reconcile",
+                LastFailureMessage = "the feed is down",
+                ConsecutiveFailures = 3
+            },
+            RunStatus("trigger-2", now.AddHours(-3), JobRunResult.Succeeded) with { LastDuration = TimeSpan.FromMilliseconds(40) });
+
+        IRenderedComponent<Triggers> page = context.Render<Triggers>();
+
+        page.FindAll("th").Select(th => th.TextContent.Trim()).Should().ContainInOrder("Previous fire", "Last run", "State");
+        page.FindAll("td.qz-col-last-run .qz-trigger-last-run").Select(Text).Should().Equal(
+            "Failed 1.5 s 2m ago",
+            "Succeeded 40 ms 3h ago");
+        page.FindAll("td.qz-col-last-run .qz-trigger-failing").Select(Text).Should().Equal("failing ×3");
+
+        IElement summary = page.Find("td.qz-col-last-run .qz-trigger-last-run");
+        summary.GetAttribute("title").Should().Be("Fired 2026-10-05 09:21:00 -05:00, on node-a: 3 invoices did not reconcile",
+            "the fire time is in the dashboard's zone, as every time on the page is");
+
+        IElement badge = page.Find("td.qz-col-last-run .qz-failing-badge");
+        badge.GetAttribute("title").Should().Be("the feed is down", "the badge says what the last failure said");
+        badge.GetAttribute("href").Should().EndWith("history?outcome=failed&triggerGroup=nightly&triggerName=trigger-1&result=failed",
+            "the badge opens the trigger's final failures, not the trigger's own page");
+        page.FindAll("td.qz-col-last-run .qz-failing-badge").Should().ContainSingle("a trigger that has not failed has no badge");
+    }
+
+    /// <summary>
+    /// The last run is under the state too, shown there once the listing is too narrow for its column, as the
+    /// schedule is under the key.
+    /// </summary>
+    [Test]
+    public void TheLastRunIsUnderTheStateForANarrowListing()
+    {
+        DateTimeOffset now = context.Clock.GetUtcNow();
+        GivenTriggers(TestData.Dashboard.TriggerHeaders("nightly", 1));
+        GivenRunStatuses(RunStatus("trigger-1", now.AddMinutes(-2), JobRunResult.Failed) with { ConsecutiveFailures = 1 });
+
+        IRenderedComponent<Triggers> page = context.Render<Triggers>();
+
+        page.Find("table.qz-triggers-table").ClassList.Should().Contain("qz-with-last-run",
+            "the listing's narrow steps come earlier with the column than without it");
+        Text(page.Find("td.qz-col-state .qz-last-run-inline")).Should().Be(Text(page.Find("td.qz-col-last-run")));
+    }
+
+    [Test]
+    public void ATriggerWithNoRecordedRunShowsADashThatSaysSo()
+    {
+        GivenTriggers(TestData.Dashboard.TriggerHeaders("nightly", 1));
+        GivenRunStatuses();
+
+        IRenderedComponent<Triggers> page = context.Render<Triggers>();
+
+        IElement dash = page.Find("td.qz-col-last-run .qz-trigger-no-run");
+        dash.TextContent.Trim().Should().Be("—");
+        dash.GetAttribute("title").Should().Be("No run of this trigger has been recorded");
+    }
+
+    /// <summary>
+    /// A data source that keeps no trigger status — a history of the application's own, a host older than 4.9 —
+    /// leaves the column out, and the listing lays out as it did before it.
+    /// </summary>
+    [Test]
+    public void ASourceThatKeepsNoTriggerStatusLeavesTheColumnOut()
+    {
+        GivenTriggers(TestData.Dashboard.TriggerHeaders("nightly", 2));
+
+        IRenderedComponent<Triggers> page = context.Render<Triggers>();
+
+        page.FindAll("th.qz-col-last-run").Should().BeEmpty();
+        page.FindAll(".qz-last-run-inline").Should().BeEmpty();
+        page.Find("table.qz-triggers-table").ClassList.Should().NotContain("qz-with-last-run");
+        page.FindAll(".qz-error-alert").Should().BeEmpty("a source without the datum is not a page that failed to load");
+    }
+
+    /// <summary>
+    /// The statuses are read once per load and once per refresh, for the page's triggers in one call: never one
+    /// read per row.
+    /// </summary>
+    [Test]
+    public void TheStatusesAreReadOncePerLoadAndPerRefreshForThePagesTriggers()
+    {
+        GivenTriggers(TestData.Dashboard.TriggerHeaders("nightly", 3));
+        List<TriggerRunStatusQuery> reads = GivenRunStatuses();
+
+        IRenderedComponent<Triggers> page = context.Render<Triggers>();
+
+        page.WaitForAssertion(() => reads.Should().ContainSingle());
+        reads[0].Triggers.Should().BeEquivalentTo(
+            [new TriggerKey("trigger-1", "nightly"), new TriggerKey("trigger-2", "nightly"), new TriggerKey("trigger-3", "nightly")],
+            "the one read names every trigger on the page");
+        reads[0].SchedulerName.Should().Be(context.SchedulerState.ActiveSchedulerName);
+
+        page.Find("[data-testid=refresh]").Click();
+
+        page.WaitForAssertion(() => reads.Should().HaveCount(2, "a refresh reads the page's statuses once more, and only once"));
+    }
+
+    /// <summary>
+    /// A read of the statuses that fails, once the listing has been read, marks the listing stale as a failed read of
+    /// the listing does, and keeps what was shown.
+    /// </summary>
+    [Test]
+    public void AStatusReadThatFailsOnARefreshMarksTheListingStale()
+    {
+        DateTimeOffset now = context.Clock.GetUtcNow();
+        GivenTriggers(TestData.Dashboard.TriggerHeaders("nightly", 1));
+        GivenRunStatuses(RunStatus("trigger-1", now.AddMinutes(-2), JobRunResult.Succeeded));
+        IRenderedComponent<Triggers> page = context.Render<Triggers>();
+
+        A.CallTo(() => context.Api.QueryTriggerRunStatuses(A<TriggerRunStatusQuery>._, A<CancellationToken>._))
+            .Throws(new InvalidOperationException("the history is not answering"));
+        page.Find("[data-testid=refresh]").Click();
+
+        page.WaitForAssertion(() =>
+        {
+            page.Find("[data-testid=stale-marker]").GetAttribute("title").Should().Be(
+                "The last refresh failed: the history is not answering");
+            page.FindAll("td.qz-col-last-run .qz-trigger-last-run").Should().ContainSingle("the statuses read before stay on screen");
+        });
+    }
+
+    private List<TriggerRunStatusQuery> GivenRunStatuses(params TriggerRunStatus[] statuses)
+    {
+        List<TriggerRunStatusQuery> reads = [];
+        A.CallTo(() => context.Api.QueryTriggerRunStatuses(A<TriggerRunStatusQuery>._, A<CancellationToken>._))
+            .ReturnsLazily((TriggerRunStatusQuery query, CancellationToken _) =>
+            {
+                reads.Add(query);
+                List<TriggerRunStatus> named = statuses.Where(status => query.Triggers is null || query.Triggers.Contains(status.Trigger)).ToList();
+                return new ValueTask<PagedResult<TriggerRunStatus>>(new PagedResult<TriggerRunStatus>(named, HasMore: false));
+            });
+
+        return reads;
+    }
+
+    private TriggerRunStatus RunStatus(string triggerName, DateTimeOffset firedAt, JobRunResult result) =>
+        new(context.SchedulerState.ActiveSchedulerName!, new TriggerKey(triggerName, "nightly"), firedAt, result);
+
     private static void Select(IRenderedComponent<Triggers> page, string key)
     {
         page.Find("input.qz-select-trigger[aria-label='Select " + key + "']").Change(true);

@@ -40,6 +40,15 @@ internal static class DisplayValueHelper
     }
 
     /// <summary>
+    /// How many occurrences in a row have failed for good, as the Jobs and Triggers listings badge it:
+    /// <c>failing ×3</c>.
+    /// </summary>
+    public static string FormatFailing(int consecutiveFailures)
+    {
+        return "failing ×" + consecutiveFailures.ToString(CultureInfo.InvariantCulture);
+    }
+
+    /// <summary>
     /// A duration in the largest unit that keeps it readable: sub-second runs in milliseconds, anything up to
     /// a minute in seconds, anything longer spelled out; <c>n/a</c> for none.
     /// </summary>

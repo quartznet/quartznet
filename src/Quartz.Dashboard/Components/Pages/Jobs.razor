@@ -133,7 +133,7 @@
                                             <a class="qz-failing-badge"
                                                href="@GetFailuresPath(jobGroup, jobName)"
                                                title="@status.LastFailureMessage"
-                                               @onclick:stopPropagation="true">@FailingLabel(status.ConsecutiveFailures)</a>
+                                               @onclick:stopPropagation="true">@DisplayValueHelper.FormatFailing(status.ConsecutiveFailures)</a>
                                         }
                                     </td>
                                 }
@@ -561,11 +561,6 @@
     private string GetJobDetailPath(string group, string name)
     {
         return DashboardLink.To(Options.Value, "jobs/" + Uri.EscapeDataString(group) + "/" + Uri.EscapeDataString(name));
-    }
-
-    private static string FailingLabel(int consecutiveFailures)
-    {
-        return "failing ×" + consecutiveFailures.ToString(System.Globalization.CultureInfo.InvariantCulture);
     }
 
     /// <summary>
