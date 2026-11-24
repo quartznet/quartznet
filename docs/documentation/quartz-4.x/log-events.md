@@ -411,6 +411,10 @@ matching on its text is not.
 | 9007 | Information | `Quartz.AspNetCore` | `"Api user {User} performed {Operation} on scheduler {SchedulerName}: {Route}"` |
 | 9008 | Debug | `Quartz.AspNetCore` | `"NotSupportedException thrown"` |
 | 9009 | Warning | `Quartz.AspNetCore` | `"Api user {User} was refused {Operation} on scheduler {SchedulerName}: it needs {Access}"` |
+| 9010 | Warning | `Quartz.AspNetCore` | `"Target {Target} is not reachable for {Operation} on scheduler {SchedulerName}: {Reason}"` |
+| 9011 | Warning | `Quartz.AspNetCore` | `"Target {Target} did not answer {Operation} on scheduler {SchedulerName} in time: {Reason}"` |
+| 9012 | None | `Quartz.AspNetCore` | `"Target {Target} did not serve {Operation} on scheduler {SchedulerName}: {Fault}, {Reason}"` |
+| 9013 | Error | `Quartz.AspNetCore` | `"Recording an operator action with {Recorder} failed"` |
 | 9100 | Information | `Quartz.Dashboard` | `"Dashboard user {User} performed {Action} on {Target} of scheduler {SchedulerName}: {Outcome} (origin {Origin}, node {Node})"` |
 | 9101 | Information | `Quartz.Dashboard` | `"Dashboard user {User} attempted {Action} on {Target} of scheduler {SchedulerName} and it failed: {Reason} (origin {Origin}, node {Node})"` |
 | 9102 | Debug | `Quartz.Dashboard` | `"Dashboard connection {ConnectionId} opened for user {User}"` |
@@ -450,6 +454,7 @@ matching on its text is not.
 | 9407 | Information | `Quartz.Dashboard.Host` | `"HTTP target {Target} reaches scheduler {SchedulerName} at {Address}"` |
 | 9408 | Information | `Quartz.Dashboard.Host` | `"Store-attached target {Target} reads a {Provider} database with the {Serializer} serializer"` |
 | 9409 | Information | `Quartz.Dashboard.Host` | `"Accepting agents at {HubPath}. Run one instance of the host while it accepts agents"` |
+| 9410 | Warning | `Quartz.Dashboard.Host` | `"A bearer token presented to the HTTP API was refused: it matched no role"` |
 | 10000 | Information | `Quartz.Weasel` | `"Applied the schema changes scheduler '{SchedulerName}' needs to {Database} ({Difference})"` |
 | 10001 | Debug | `Quartz.Weasel` | `"The schema of scheduler '{SchedulerName}' in {Database} already matches the model"` |
 | 10002 | Information | `Quartz.Weasel` | `"Not applying the schema of scheduler '{SchedulerName}' at startup, because AutoCreate is {AutoCreate}; the store still validates it"` |

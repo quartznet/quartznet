@@ -47,6 +47,9 @@ internals behind them.
 - `Quartz.Aspire.Hosting` — the AppHost resource that runs that image. It references `Aspire.Hosting` and
   **nothing of Quartz**: the environment variables it writes are the contract, and `Quartz.Tests.Aspire`
   feeds them to the host's own reader and the agent's.
+- The HTTP API serves a scheduler behind a target with `?target=` (4.9): the key resolves through
+  `SchedulerLookup.Resolve` with the container's windows, and the route's own handler runs against the proxy or
+  window it names. No bytes are relayed. The dashboard host maps the API once, for its whole fleet, bearer only.
 - `UseDashboardAgent` reads `Quartz:DashboardAgent` (a named scheduler's own section first) through the
   binding generator, before any callback.
 

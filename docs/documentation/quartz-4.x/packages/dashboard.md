@@ -659,14 +659,20 @@ the container; the page subscribes for the scheduler on screen.
 
 ### Action Log
 
-`/quartz/actions` lists what was done *from this dashboard*, newest first: time, scheduler, user (from 4.3),
-action, target, where it landed, success, and any message. It answers "who paused this" when "who" is the
-dashboard. From 4.4, a pause given a reason carries it in the message as `reason: …`.
+`/quartz/actions` lists what was done *through this process*, newest first: time, the surface it came through,
+scheduler, user (from 4.3), action, target, where it landed, success, and any message. It answers "who paused
+this". From 4.4, a pause given a reason carries it in the message as `reason: …`.
 
-- The store is in-memory and process-wide, holding the last 250 actions across schedulers. The page shows the
-  most recent 100 of those that target the selected scheduler.
-- It records only this process's dashboard. An HTTP API action is logged where the API is mapped, as event
-  `9007`. Other nodes' and other dashboards' actions are not here, and nothing survives a restart.
+- **Via** (4.9) says which surface: *Dashboard* for this dashboard's buttons, *HTTP API* for a request to the
+  [HTTP API](http-api.md) mapped in the same process, including the [dashboard host's](dashboard-host.md#the-http-api),
+  and *MCP* for an MCP tool. Every API change and every refusal for a role is entered, with the caller's name and
+  the operation's name (`PauseTrigger`). A client that names itself is shown under the badge *as stated*: the
+  identity is the user. The **Via** filter above the table reads one surface alone.
+- The store is in-memory and process-wide, holding the last 250 actions across schedulers and surfaces. The page
+  shows the most recent 100 of those that target the selected scheduler and pass the filter. A busy script can
+  push the dashboard's own entries out of the 250.
+- Other nodes' and other dashboards' actions are not here, and nothing survives a restart. An API action is also
+  logged as event `9007`, a refusal as `9009`.
 
 **Where each action landed:**
 
@@ -1560,6 +1566,8 @@ builder.Services.AddQuartzDashboard(options =>
   HTTP target applies its own `OperationAuthorizationPolicy` to the dashboard's credential, and its `403` is a
   toast.
 - The visitor's identity is not forwarded: an agent or an HTTP target sees the dashboard, not the visitor.
+- The [HTTP API through the dashboard host](http-api.md#through-the-dashboard-host-target), and MCP, ask the same
+  policy with the same resource, its `Target` set, so one policy decides every surface.
 - The dashboard asks seeing a scheduler as `SchedulerResource(name) { Access = View }`, with no `Operation`, and
   each change with the operation's name and level.
 
