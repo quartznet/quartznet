@@ -3,6 +3,7 @@ using System.Collections.Specialized;
 using FakeItEasy;
 
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 
 using Quartz.Configuration;
@@ -2080,6 +2081,164 @@ public class InProcessQuartzApiClientTest
     /// The members 4.3 added for the editor and the bulk actions, by name.
     /// </summary>
     private static readonly HashSet<string> BulkOrEditMembers = ["UpdateTriggerDetails", "PauseTriggers", "ResumeTriggers", "UnscheduleJobs"];
+
+    /// <summary>
+    /// A running firing's log, read in this process where it runs (#4437): the scheduler's page as the DTO, with the
+    /// cursor, the lines the capture dropped before they could be read, and whether more are kept.
+    /// </summary>
+    [Test]
+    public async Task ARunningFiringsLogIsReadWhereItRuns()
+    {
+        ServiceCollection services = new();
+        services.AddLogging();
+        services.AddQuartz(quartz =>
+        {
+            quartz.ConfigureScheduler(options =>
+            {
+                options.InstanceName = "running-log-" + Guid.NewGuid().ToString("N");
+                options.InstanceId = "local-node";
+            });
+            quartz.UseExecutionLogCapture(options => options.MaxLines = 2);
+        });
+
+        await using ServiceProvider provider = services.BuildServiceProvider();
+        IScheduler scheduler = await provider.GetRequiredService<ISchedulerFactory>().GetScheduler();
+        await scheduler.Start();
+        LoggingHeldJob.Reset();
+        try
+        {
+            JobKey job = new("held", "running-log");
+            await scheduler.AddJob(JobBuilder.Create<LoggingHeldJob>().WithIdentity(job).StoreDurably().Build());
+            await scheduler.TriggerJob(job);
+            string firing = await LoggingHeldJob.Logged.Task.WaitAsync(TimeSpan.FromSeconds(20));
+
+            InProcessQuartzApiClient client = CreateClient(scheduler);
+            FireInstanceLogDto log = await client.GetFireInstanceLog(scheduler.SchedulerName, new DashboardFireInstanceLogQuery
+            {
+                FireInstanceId = firing,
+                Take = 1,
+            });
+
+            log.Status.Should().Be(FireInstanceLogStatus.Running);
+            log.SchedulerInstanceId.Should().Be("local-node");
+            log.Entries.Should().ContainSingle().Which.Should().EndWith("line 2", "the capture keeps two lines, so the first is gone");
+            log.Missed.Should().Be(1, "line 1 was dropped before the reader got it, and the panel says so");
+            log.Next.Should().Be(2);
+            log.HasMore.Should().BeTrue("line 3 is kept, and the page was one line");
+        }
+        finally
+        {
+            LoggingHeldJob.Release.TrySetResult();
+            await scheduler.Shutdown(waitForJobsToComplete: true);
+        }
+    }
+
+    /// <summary>
+    /// Every state the scheduler answers reaches the page as the status of the same name, with the node and the
+    /// cursor it answered, and the request reaches the scheduler as the page made it.
+    /// </summary>
+    [TestCase(FireInstanceLogStatus.Running)]
+    [TestCase(FireInstanceLogStatus.NotCaptured)]
+    [TestCase(FireInstanceLogStatus.NotRunning)]
+    [TestCase(FireInstanceLogStatus.Unreachable)]
+    public async Task EveryStateOfARunningLogReadIsCarriedToThePage(FireInstanceLogStatus status)
+    {
+        FireInstanceLogState state = Enum.Parse<FireInstanceLogState>(status.ToString());
+        IScheduler inner = A.Fake<IScheduler>();
+        A.CallTo(() => inner.SchedulerName).Returns(TestData.SchedulerName);
+        AnsweringLogScheduler scheduler = new(inner, new FireInstanceLog(state, "node-x", ["a line"], 8, Missed: 3, HasMore: true));
+        InProcessQuartzApiClient client = CreateClient(scheduler);
+
+        FireInstanceLogDto log = await client.GetFireInstanceLog(TestData.SchedulerName, new DashboardFireInstanceLogQuery
+        {
+            FireInstanceId = "fire-1",
+            After = 7,
+            SchedulerInstanceId = "node-x",
+            Take = 20,
+        });
+
+        log.Should().BeEquivalentTo(new FireInstanceLogDto(status, "node-x", ["a line"], 8) { Missed = 3, HasMore = true });
+        scheduler.Asked.Should().Be(new FireInstanceLogRequest("fire-1", 7, 20, "node-x"));
+    }
+
+    [TestCase(-1, 500)]
+    [TestCase(0, 0)]
+    [TestCase(0, 1001)]
+    public async Task ARunningLogReadOutOfRangeIsRefusedBeforeTheSchedulerIsAsked(long after, int take)
+    {
+        IScheduler scheduler = A.Fake<IScheduler>();
+        A.CallTo(() => scheduler.SchedulerName).Returns(TestData.SchedulerName);
+        InProcessQuartzApiClient client = CreateClient(scheduler);
+
+        Func<Task> read = async () => await client.GetFireInstanceLog(TestData.SchedulerName, new DashboardFireInstanceLogQuery
+        {
+            FireInstanceId = "any",
+            After = after,
+            Take = take,
+        });
+
+        await read.Should().ThrowAsync<ArgumentException>().WithMessage("*must be*");
+    }
+
+    /// <summary>
+    /// The default interface member: an application's own data source written before 4.9 says it cannot read a
+    /// running firing's log, which Currently Executing's Show log shows in its words.
+    /// </summary>
+    [Test]
+    public async Task AnApplicationsOwnClientSaysItCannotReadARunningLog()
+    {
+        IQuartzApiClient own = A.Fake<IQuartzApiClient>();
+        A.CallTo(() => own.GetFireInstanceLog(A<string>._, A<DashboardFireInstanceLogQuery>._, A<CancellationToken>._)).CallsBaseMethod();
+
+        Func<Task> read = async () => await own.GetFireInstanceLog("any", new DashboardFireInstanceLogQuery { FireInstanceId = "any" });
+
+        await read.Should().ThrowAsync<NotSupportedException>().WithMessage("*cannot read a running firing's log*does not implement GetFireInstanceLog*");
+    }
+
+    /// <summary>
+    /// A scheduler that answers a running log read with what it was given, and remembers what it was asked: a fake
+    /// cannot implement the capability, which is internal to a strong-named assembly.
+    /// </summary>
+    private sealed class AnsweringLogScheduler(IScheduler inner, FireInstanceLog answer) : DelegatingScheduler(inner), IFireInstanceLogScheduler
+    {
+        public FireInstanceLogRequest? Asked { get; private set; }
+
+        ValueTask<FireInstanceLog> IFireInstanceLogScheduler.ReadFireInstanceLog(FireInstanceLogRequest request, CancellationToken cancellationToken)
+        {
+            Asked = request;
+            return new ValueTask<FireInstanceLog>(answer);
+        }
+    }
+
+    /// <summary>Logs three lines and runs until it is released.</summary>
+    public sealed class LoggingHeldJob : IJob
+    {
+        private readonly ILogger<LoggingHeldJob> logger;
+
+        public LoggingHeldJob(ILogger<LoggingHeldJob> logger)
+        {
+            this.logger = logger;
+        }
+
+        public static TaskCompletionSource<string> Logged { get; private set; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
+
+        public static TaskCompletionSource Release { get; private set; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
+
+        public static void Reset()
+        {
+            Logged = new TaskCompletionSource<string>(TaskCreationOptions.RunContinuationsAsynchronously);
+            Release = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        }
+
+        public async ValueTask Execute(IJobExecutionContext context, CancellationToken cancellationToken = default)
+        {
+            logger.LogInformation("line 1");
+            logger.LogInformation("line 2");
+            logger.LogInformation("line 3");
+            Logged.TrySetResult(context.FireInstanceId);
+            await Release.Task.WaitAsync(TimeSpan.FromSeconds(20), cancellationToken);
+        }
+    }
 
     public sealed class ReportingJob : IJob
     {

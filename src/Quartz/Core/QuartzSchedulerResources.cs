@@ -406,6 +406,17 @@ internal sealed class QuartzSchedulerResources
     internal JobExecutionDelegate? JobExecutionPipeline { get; set; }
 
     /// <summary>
+    /// Whether <see cref="JobExecutionPipeline" /> begins a capture buffer for every firing: whether the
+    /// scheduler calls <c>UseExecutionLogCapture()</c> (#4437).
+    /// </summary>
+    /// <remarks>
+    /// Kept beside the composed chain because the chain alone cannot say it, and a firing's missing buffer
+    /// cannot either: a firing that has not reached the capture middleware yet has none, as a firing of a
+    /// scheduler that captures nothing has none. A running firing's log is read as "not captured" from this.
+    /// </remarks>
+    internal bool CapturesExecutionLog { get; set; }
+
+    /// <summary>
     /// The execution history this scheduler's recorder writes, or <see langword="null" /> when it has no
     /// recorder.
     /// </summary>

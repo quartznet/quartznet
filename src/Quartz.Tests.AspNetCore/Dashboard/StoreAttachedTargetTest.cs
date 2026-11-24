@@ -364,6 +364,32 @@ public sealed class StoreAttachedTargetTest
     }
 
     /// <summary>
+    /// A running firing's log is read where the firing runs, and a window runs nothing (#4437): the client answers
+    /// <see cref="FireInstanceLogStatus.Unreachable" /> and asks the window nothing. Asked, the window would say it
+    /// runs no such firing under its own id, which the page would read as another node running it.
+    /// </summary>
+    [Test]
+    public async Task AWindowCannotFollowARunningFiringsLog()
+    {
+        await using ServiceProvider node = await StartNode(ClusterScheduler);
+        WriteCheckIn(ClusterScheduler, NodeA, DateTimeOffset.UtcNow);
+
+        await using DashboardHost dashboard = await DashboardHost.Attached(database);
+
+        FireInstanceLogDto log = await dashboard.Client.GetFireInstanceLog(ClusterScheduler, new DashboardFireInstanceLogQuery
+        {
+            FireInstanceId = "running-on-node-a",
+            After = 4,
+            SchedulerInstanceId = NodeA,
+        });
+
+        log.Status.Should().Be(FireInstanceLogStatus.Unreachable);
+        log.SchedulerInstanceId.Should().BeNull("the window is no node, and a NotRunning under its id would read as another node");
+        log.Entries.Should().BeEmpty();
+        log.Next.Should().Be(4, "the reader's cursor comes back as it went");
+    }
+
+    /// <summary>
     /// A window records an interrupt on the firing's row (#4141), as a 4.6 node does for a peer's firing, and
     /// the listing reads it back, so the page can say one is pending.
     /// </summary>

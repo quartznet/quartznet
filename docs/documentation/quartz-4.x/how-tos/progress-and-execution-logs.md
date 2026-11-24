@@ -203,6 +203,8 @@ foreach (ExecutionHistoryEntry row in page.Items)
 | `GET …/history/executions/{entryId}` | Yes, as `log` |
 | `GET …/history/executions` | No; each row carries `entryId` |
 | Dashboard | [The execution's page](../packages/dashboard.md#execution-history), from a History row's fire time |
+| `GET …/jobs/fire-instances/{fireInstanceId}/log` | From 4.9, the lines so far while the firing runs, read on the node running it; see [A running firing's log](../packages/http-api.md#a-running-firing-s-log) |
+| Dashboard, while it runs | From 4.9, Currently Executing's [*Show log*](../packages/dashboard.md#following-a-running-firing-s-log) |
 
 * The database history needs [`4.3/add_execution_log_<db>.sql`](../../database/schema-changes.md#version-4-3);
   a store that keeps its history there refuses to start without it.

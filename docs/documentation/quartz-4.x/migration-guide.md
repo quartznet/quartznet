@@ -71,6 +71,11 @@ An application on 4.8 compiles on 4.9 unchanged.
 | `AdoConstants.TableTriggerStatus` | `"TRIGGER_STATUS"` |
 | HTTP API `GET …/history/trigger-status` and `POST …/history/trigger-status/fetch` | Reads, at `View`; the fetch is served when `ReadOnly`. See [Trigger run status](packages/http-api.md#trigger-run-status) |
 | Dashboard: the Triggers listing's *Last run* with *failing ×N* | See [Trigger run status](packages/dashboard.md#trigger-run-status) |
+| `IQuartzApiClient.GetFireInstanceLog(schedulerName, DashboardFireInstanceLogQuery, CancellationToken)` | `Quartz.Dashboard`. Default interface member: the lines a running firing has logged after a cursor, read from the process running it (#4437). The default throws `NotSupportedException`, and Currently Executing's *Show log* says the source cannot follow a firing. See [Following a running firing's log](packages/dashboard.md#following-a-running-firing-s-log) |
+| `DashboardFireInstanceLogQuery` | `Quartz.Dashboard`, `sealed record`: `FireInstanceId` (`required`), `After` (`long`, `0`), `SchedulerInstanceId` (`string?`: the node running the firing, the only node a cluster asks), `Take` (`500`, from 1 to 1000), all `init` |
+| `FireInstanceLogDto` | `Quartz.Dashboard`, `sealed record` `(Status, SchedulerInstanceId, Entries, Next)`, with `Missed` and `HasMore`, `init` |
+| `FireInstanceLogStatus` | `Quartz.Dashboard`, enum `Running`, `NotCaptured`, `NotRunning`, `Unreachable`. `Running` is `0` |
+| `GET …/jobs/fire-instances/{fireInstanceId}/log` | HTTP API route `GetFireInstanceLog`, View: `{ status, schedulerInstanceId, entries, next, missed, hasMore }`. Agent operation `GetFireInstanceLog`, allowed by default. See [A running firing's log](packages/http-api.md#a-running-firing-s-log) |
 
 | Changed | What to check |
 |---|---|
@@ -89,6 +94,7 @@ An application on 4.8 compiles on 4.9 unchanged.
 | `RAMJobStore`: `RescheduleJob` to a trigger of another key while continuations wait for the old one | They are settled as a deleted parent's: `OnAnyOutcome` ones released, the others parked in `Error` with `TriggerInError`. Before, they waited for the old key for ever. The persistent store already settled them, at its next misfire pass. See [When the parent is deleted](how-tos/job-continuations.md#when-the-parent-is-deleted) |
 | The dashboard's reschedule of a cron trigger (#4412) | Resets the trigger's previous fire time and a pending retry, and stores the edited expression's first fire after now. Before, the clone carried both over. A trigger paused on its own is paused again, with its reason and who asked, dated now; before, it came back unpaused. A trigger its group keeps paused stays so. The four other kinds, editable from 4.9, reset their count of fires too. See [Rescheduling a trigger](packages/dashboard.md#rescheduling-a-trigger) |
 | A calendar saved from the dashboard (#4413), in the Action Log and log events `9100` and `9101` | `CreateCalendar` for a new name and `ReplaceCalendar` for a stored one, with the calendar's type and, for a replace, `updateTriggers=true` or `false` in the message. A save with *Replace if existing* ticked was `UpsertCalendar`. An alert matching `UpsertCalendar` matches neither. See [Calendars](packages/dashboard.md#calendars) |
+| A policy or an agent's `IsOperationAllowed` that refuses `GetExecution` to keep captured logs from a caller | Refuse `GetFireInstanceLog` as well: from 4.9 it reads the same lines while the firing runs. A predicate that allows operations by name, rather than refusing them by name, already refuses it |
 
 ## Upgrading from 4.7 to 4.8
 

@@ -22,6 +22,7 @@
 using System.Text.Json;
 using System.Text.Json.Serialization;
 
+using Quartz.Impl;
 using Quartz.Serialization.SystemTextJson;
 
 namespace Quartz.HttpApiContract;
@@ -76,6 +77,7 @@ internal static class HttpApiJson
         options.Converters.Add(new JsonStringEnumConverter<ContinuationCondition>());
         options.Converters.Add(new JsonStringEnumConverter<SchedulerStatus>());
         options.Converters.Add(new JsonStringEnumConverter<FireInstanceState>());
+        options.Converters.Add(new JsonStringEnumConverter<FireInstanceLogState>());
         options.Converters.Add(new JsonStringEnumConverter<ExecutionLimitScope>());
         options.Converters.Add(new JsonStringEnumConverter<ClusterNodeState>());
         options.Converters.Add(new JsonStringEnumConverter<SchedulerOrigin>());

@@ -3796,6 +3796,48 @@ internal sealed class QuartzScheduler
     }
 
     /// <summary>
+    /// The entries a firing running on this node has logged after the reader's cursor (#4437).
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// Looked up as <see cref="InterruptFireInstance" /> looks a firing up, by its fire instance id, and read
+    /// from the capture buffer beside its context, which exists only in this process. A firing this node does
+    /// not run is <see cref="Impl.FireInstanceLogState.NotRunning" /> under this node's id, whatever node the
+    /// request names: the caller tells a firing that ended from one that runs elsewhere by the node that
+    /// answered.
+    /// </para>
+    /// <para>
+    /// A scheduler that does not capture answers <see cref="Impl.FireInstanceLogState.NotCaptured" />, said from
+    /// its middleware rather than from the firing: one that has not reached the capture middleware yet has no
+    /// buffer either, and is <see cref="Impl.FireInstanceLogState.Running" /> with nothing logged.
+    /// </para>
+    /// </remarks>
+    /// <exception cref="ArgumentException">The request's cursor or page size is out of range.</exception>
+    internal Impl.FireInstanceLog ReadFireInstanceLog(Impl.FireInstanceLogRequest request)
+    {
+        Impl.FireInstanceLogs.Check(request);
+
+        if (!jobMgr.TryGetExecutingJob(request.FireInstanceId, out IJobExecutionContext? context))
+        {
+            return Impl.FireInstanceLogs.NotRunning(SchedulerInstanceId, request.After);
+        }
+
+        if (!resources.CapturesExecutionLog)
+        {
+            return new Impl.FireInstanceLog(Impl.FireInstanceLogState.NotCaptured, SchedulerInstanceId, [], request.After, Missed: 0, HasMore: false);
+        }
+
+        Diagnostics.ExecutionLogBuffer? buffer = Diagnostics.ExecutionLogCapture.Find(context);
+        if (buffer is null)
+        {
+            return new Impl.FireInstanceLog(Impl.FireInstanceLogState.Running, SchedulerInstanceId, [], request.After, Missed: 0, HasMore: false);
+        }
+
+        Diagnostics.ExecutionLogPage page = buffer.Read(request.After, request.Take, Impl.FireInstanceLogs.MaxAnswerBytes);
+        return new Impl.FireInstanceLog(Impl.FireInstanceLogState.Running, SchedulerInstanceId, page.Entries, page.Next, page.Missed, page.HasMore);
+    }
+
+    /// <summary>
     /// Whether a read of this node's interrupt requests is queued or running, so that a check-in arriving
     /// while one is slow does not start a second beside it.
     /// </summary>

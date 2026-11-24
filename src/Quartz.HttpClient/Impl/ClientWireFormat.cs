@@ -88,6 +88,7 @@ internal static class ClientWireFormat
         options.Converters.Add(new TolerantEnumConverter<ScheduleOutcome>(unknownNames));
         options.Converters.Add(new TolerantEnumConverter<MisfireReason>(unknownNames));
         options.Converters.Add(new TolerantEnumConverter<JobRunResult>(unknownNames));
+        options.Converters.Add(new TolerantEnumConverter<FireInstanceLogState>(unknownNames));
 
         // The listings whose items carry one of those where it cannot be absent.
         options.Converters.Add(new ListingItemsConverter<TriggerHeaderDto>(unknownNames, "trigger"));

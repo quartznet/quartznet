@@ -129,6 +129,10 @@ public class Startup
             q.AddPlugin<LoggingJobHistoryPlugin>();
             q.AddPlugin<LoggingTriggerHistoryPlugin>();
 
+            // keep what each job logs while it runs: Currently Executing's Show log follows it live, and
+            // Execution Detail shows it once the run ends. Before the other middleware, so what they log is kept too
+            q.UseExecutionLogCapture();
+
             // quickest way to create a job with single trigger is to use ScheduleJob
             q.ScheduleJob<ExampleJob>(trigger => trigger
                 .WithIdentity("Combined Configuration Trigger")

@@ -98,6 +98,19 @@ internal sealed class AgentQuery
             : throw Unreadable(name, value);
     }
 
+    public long GetLong(string name, long fallback)
+    {
+        string? value = Get(name);
+        if (string.IsNullOrEmpty(value))
+        {
+            return fallback;
+        }
+
+        return long.TryParse(value, NumberStyles.Integer, CultureInfo.InvariantCulture, out long parsed)
+            ? parsed
+            : throw Unreadable(name, value);
+    }
+
     public bool GetBool(string name, bool fallback)
     {
         return GetNullableBool(name) ?? fallback;

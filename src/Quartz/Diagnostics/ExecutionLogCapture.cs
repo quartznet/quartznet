@@ -101,6 +101,12 @@ internal sealed class ExecutionLogBuffer
     private int bytes;
     private int dropped;
 
+    /// <summary>
+    /// How many entries were ever appended, kept or dropped: the sequence number the next one gets, and
+    /// what a reader's cursor counts in (#4437).
+    /// </summary>
+    private long appended;
+
     internal ExecutionLogBuffer(int maxLines, int maxBytes, TimeProvider timeProvider)
     {
         this.maxLines = maxLines;
@@ -140,6 +146,7 @@ internal sealed class ExecutionLogBuffer
         {
             lines.Enqueue((line, size));
             bytes += size;
+            appended++;
 
             while (lines.Count > maxLines || bytes > maxBytes)
             {
@@ -180,6 +187,58 @@ internal sealed class ExecutionLogBuffer
             }
 
             return text.ToString();
+        }
+    }
+
+    /// <summary>
+    /// The entries a reader that has <paramref name="after" /> of them does not have yet, oldest first: what a
+    /// running firing's log is followed by (#4437).
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// The cursor is the entry sequence number, the count of entries appended before the first one answered.
+    /// The buffer drops its oldest entries, so the first one it still keeps is <c>appended - kept</c>: a cursor
+    /// behind it resumes there, and the entries in between are counted as missed, not taken from the total
+    /// dropped, which includes the ones the reader already had.
+    /// </para>
+    /// <para>
+    /// At most <paramref name="take" /> entries, and none past <paramref name="maxBytes" /> of UTF-8 but the
+    /// first: one entry larger than the cap still comes back alone, so a reader always moves on.
+    /// </para>
+    /// </remarks>
+    /// <param name="after">How many entries the reader has: the <see cref="ExecutionLogPage.Next" /> of its last read, 0 at first.</param>
+    /// <param name="take">The most entries to answer, at least 1.</param>
+    /// <param name="maxBytes">The most UTF-8 bytes the entries answered may take, the first excepted.</param>
+    internal ExecutionLogPage Read(long after, int take, int maxBytes)
+    {
+        lock (gate)
+        {
+            long first = appended - lines.Count;
+            long start = Math.Clamp(after, first, appended);
+            long missed = Math.Max(0, first - after);
+            long skip = start - first;
+
+            List<string> entries = [];
+            long used = 0;
+            long index = 0;
+            foreach ((string line, int size) in lines)
+            {
+                if (index++ < skip)
+                {
+                    continue;
+                }
+
+                if (entries.Count >= take || (entries.Count > 0 && used + size > maxBytes))
+                {
+                    break;
+                }
+
+                entries.Add(line);
+                used += size;
+            }
+
+            long next = start + entries.Count;
+            return new ExecutionLogPage([.. entries], next, missed, next < appended);
         }
     }
 
@@ -226,3 +285,12 @@ internal sealed class ExecutionLogBuffer
         return string.Concat(line.AsSpan(0, keep), Marker);
     }
 }
+
+/// <summary>
+/// One read of a firing's captured entries, from a cursor (#4437).
+/// </summary>
+/// <param name="Entries">The entries, oldest first, as <see cref="ExecutionLogBuffer.ToText" /> prints them.</param>
+/// <param name="Next">The cursor of the next read: how many entries the reader has after this one.</param>
+/// <param name="Missed">Entries the capture's bounds dropped after the cursor and before this read.</param>
+/// <param name="HasMore">Whether more entries are kept than this read answered.</param>
+internal sealed record ExecutionLogPage(string[] Entries, long Next, long Missed, bool HasMore);

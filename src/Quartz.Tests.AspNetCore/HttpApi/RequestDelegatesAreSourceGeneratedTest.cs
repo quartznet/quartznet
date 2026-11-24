@@ -34,7 +34,7 @@ public class RequestDelegatesAreSourceGeneratedTest
     private static readonly Dictionary<string, int> mappedRoutes = new(StringComparer.Ordinal)
     {
         ["CalendarEndpoints.cs"] = 5,
-        ["JobEndpoints.cs"] = 21,
+        ["JobEndpoints.cs"] = 22,
         ["SchedulerEndpoints.cs"] = 24,
         ["TriggerEndpoints.cs"] = 24
     };

@@ -28,6 +28,7 @@ View       GetJobDetails                   GET    schedulers/{schedulerName}/job
 View       CheckJobExists                  GET    schedulers/{schedulerName}/jobs/{jobGroup}/{jobName}/exists
 View       GetJobTriggers                  GET    schedulers/{schedulerName}/jobs/{jobGroup}/{jobName}/triggers
 View       QueryFireInstances              GET    schedulers/{schedulerName}/jobs/fire-instances
+View       GetFireInstanceLog              GET    schedulers/{schedulerName}/jobs/fire-instances/{fireInstanceId}/log
 Operate    PauseJob                        POST   schedulers/{schedulerName}/jobs/{jobGroup}/{jobName}/pause
 Operate    PauseJobs                       POST   schedulers/{schedulerName}/jobs/pause
 Operate    PauseJobKeys                    POST   schedulers/{schedulerName}/jobs/keys/pause

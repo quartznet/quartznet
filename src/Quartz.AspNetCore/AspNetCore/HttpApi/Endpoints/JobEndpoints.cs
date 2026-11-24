@@ -34,6 +34,9 @@ internal static class JobEndpoints
         yield return builder.MapGet(options.PatternFor(SchedulerRoutes.QueryFireInstances), QueryFireInstances)
             .WithQuartzDefaults(SchedulerRoutes.QueryFireInstances, "Query fire instances");
 
+        yield return builder.MapGet(options.PatternFor(SchedulerRoutes.GetFireInstanceLog), GetFireInstanceLog)
+            .WithQuartzDefaults(SchedulerRoutes.GetFireInstanceLog, "Get a running firing's log");
+
         yield return builder.MapPost(options.PatternFor(SchedulerRoutes.PauseJob), PauseJob)
             .WithQuartzDefaults(SchedulerRoutes.PauseJob, "Pause job")
             .WithQuartzMutation(options);
@@ -236,6 +239,41 @@ internal static class JobEndpoints
 
         return endpointHelper.ExecuteWithJsonResponse(schedulerName, target, httpContext, schedulerRepository,
             scheduler => SchedulerOperations.QueryFireInstances(scheduler, listing, jobName, jobGroup, schedulerInstanceId, cancellationToken));
+    }
+
+    /// <summary>
+    /// The lines a running firing has logged after a cursor, read in this process, where it runs (#4437).
+    /// </summary>
+    /// <remarks>
+    /// <c>{ status, schedulerInstanceId, entries, next, missed, hasMore }</c>. <c>status</c> is <c>Running</c>,
+    /// <c>NotCaptured</c> for a scheduler that does not call <c>UseExecutionLogCapture()</c>, <c>NotRunning</c> under
+    /// this node's id for a firing it does not run, or <c>Unreachable</c> through a store window, which no process
+    /// here runs. <c>after</c> below 0 or <c>take</c> outside 1 to 1000 is a <c>400</c>; an answer stops before the
+    /// entry that would take it past 64 KB, but carries one entry at least.
+    /// </remarks>
+    [ProducesResponseType(typeof(FireInstanceLogResponse), StatusCodes.Status200OK)]
+    private static Task<IResult> GetFireInstanceLog(
+        EndpointHelper endpointHelper,
+        ISchedulerRepository schedulerRepository,
+        string schedulerName,
+        HttpContext httpContext,
+        [FromQuery(Name = HttpApiConstants.TargetQueryParameter)] string? target,
+        string fireInstanceId,
+        [Description("How many entries the reader already has: the next of its last answer, 0 at first")] long after = 0,
+        [Description("How many entries to answer, from 1 to 1000")] int take = Quartz.Impl.FireInstanceLogs.DefaultTake,
+        [Description("The node that runs the firing, as its row lists it: a cluster of targets asks that node alone")] string? schedulerInstanceId = null,
+        CancellationToken cancellationToken = default)
+    {
+        return EndpointHelper.ExecuteWithResolution(schedulerName, target, httpContext, schedulerRepository, async resolution =>
+        {
+            // A window is a scheduler never started: asked, it would answer "not running" under its own id, and a
+            // reader would take that for another node.
+            FireInstanceLogResponse response = resolution.IsWindow
+                ? SchedulerOperations.GetFireInstanceLogThroughAWindow(after, take)
+                : await SchedulerOperations.GetFireInstanceLog(resolution.Scheduler, fireInstanceId, after, take, schedulerInstanceId, cancellationToken).ConfigureAwait(false);
+
+            return endpointHelper.JsonResponse(response);
+        });
     }
 
     /// <summary>

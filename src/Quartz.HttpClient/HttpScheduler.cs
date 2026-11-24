@@ -68,7 +68,7 @@ namespace Quartz;
 /// listing reports such a scheduler as <see cref="SchedulerOrigin.Remote" />.
 /// </para>
 /// </remarks>
-public sealed class HttpScheduler : IScheduler, IProxyScheduler, IBackfillingScheduler, IUpcomingFireTimesScheduler, IScheduleDescribingScheduler, IFiringWaitingScheduler, IStartupDeclarationsScheduler
+public sealed class HttpScheduler : IScheduler, IProxyScheduler, IBackfillingScheduler, IUpcomingFireTimesScheduler, IScheduleDescribingScheduler, IFiringWaitingScheduler, IStartupDeclarationsScheduler, IFireInstanceLogScheduler
 {
     /// <summary>The first version whose schedule routes store a trigger paused.</summary>
     private static readonly Version FirstStoringPausedVersion = new(4, 4);
@@ -820,6 +820,54 @@ public sealed class HttpScheduler : IScheduler, IProxyScheduler, IBackfillingSch
         }
 
         return found ? [.. wire.Read<TriggerFireTimesResponse>(response).FireTimesUtc] : null;
+    }
+
+    /// <summary>
+    /// A running firing's log, read by the host: the lines are in the process running the firing, which the host
+    /// is, or reaches (#4437).
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// A refusal the host made comes back as the <see cref="ArgumentException" /> it would have been, with the
+    /// host's words.
+    /// </para>
+    /// <para>
+    /// A host older than 4.9, or an agent that does not serve the route, answers <c>404</c> without problem
+    /// details, and there is nothing to read the lines from instead: that is <see cref="NotSupportedException" />
+    /// naming 4.9. A host or agent that refuses the route answers <c>403</c>, which is raised as it is.
+    /// </para>
+    /// </remarks>
+    async ValueTask<FireInstanceLog> IFireInstanceLogScheduler.ReadFireInstanceLog(FireInstanceLogRequest request, CancellationToken cancellationToken)
+    {
+        FireInstanceLogs.Check(request);
+
+        QueryStringBuilder query = new();
+        query.Add("after", request.After);
+        query.Add("take", request.Take);
+        if (request.SchedulerInstanceId is not null)
+        {
+            query.Add("schedulerInstanceId", request.SchedulerInstanceId);
+        }
+
+        WireResponse response = await wire.Exchange(
+            SchedulerRoutes.GetFireInstanceLog.For(SchedulerName, request.FireInstanceId).WithQuery(query.ToString()),
+            cancellationToken).ConfigureAwait(false);
+
+        if (wire.TryReadRequestRefusal(response, out string? refusal))
+        {
+            throw new ArgumentException(refusal, nameof(request));
+        }
+
+        try
+        {
+            wire.EnsureSuccess(response);
+        }
+        catch (HttpRequestException exception) when (exception.StatusCode == HttpStatusCode.NotFound)
+        {
+            throw FireInstanceLogs.HostTooOld();
+        }
+
+        return wire.Read<FireInstanceLogResponse>(response).AsLog();
     }
 
     /// <inheritdoc />

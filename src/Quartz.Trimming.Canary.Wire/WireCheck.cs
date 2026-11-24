@@ -78,6 +78,7 @@ internal static class WireCheck
             ("pause", () => Pause(scheduler, cancellationToken)),
             ("resume", () => Resume(scheduler, cancellationToken)),
             ("trigger", () => Trigger(scheduler, cancellationToken)),
+            ("running-log", () => RunningLog(scheduler, cancellationToken)),
             ("events", () => Events(subscription, cancellationToken)),
             ("history", () => History(history, cancellationToken)),
             ("statistics", () => Statistics(history, cancellationToken)),
@@ -217,6 +218,26 @@ internal static class WireCheck
         Expect(run.FiredBy == FiredBy, $"the job ran with fired-by '{run.FiredBy}'.");
 
         return $"{JobKey} ran on the server, with the data it was scheduled with and the data it was triggered with";
+    }
+
+    /// <summary>
+    /// A running firing's log, read through the route that reads it in the host's process (#4437): for a firing
+    /// the host does not run, its answer names the host's node and says so, the state travelling as its name.
+    /// </summary>
+    private static async Task<string> RunningLog(IScheduler scheduler, CancellationToken cancellationToken)
+    {
+        string node = (await scheduler.GetMetadata(cancellationToken).ConfigureAwait(false)).SchedulerInstanceId;
+
+        Impl.FireInstanceLog log = await Impl.FireInstanceLogs.Read(
+            scheduler,
+            new Impl.FireInstanceLogRequest("no-such-firing", After: 3, Take: 10, SchedulerInstanceId: null),
+            cancellationToken).ConfigureAwait(false);
+
+        Expect(log.State == Impl.FireInstanceLogState.NotRunning, $"a firing nobody runs came back as {log.State}, not NotRunning.");
+        Expect(log.SchedulerInstanceId == node, $"the answer names the node '{log.SchedulerInstanceId}', not the host's '{node}'.");
+        Expect(log.Entries.Length == 0 && log.Next == 3 && !log.HasMore, $"the answer carried {log.Entries.Length} entries and the cursor {log.Next}.");
+
+        return $"a firing the host does not run reads back as {log.State} on node '{log.SchedulerInstanceId}', the cursor unchanged";
     }
 
     /// <summary>

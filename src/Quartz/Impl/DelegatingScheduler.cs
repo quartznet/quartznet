@@ -10,7 +10,7 @@ namespace Quartz.Impl;
 /// Every member is <c>virtual</c>, and a member added to <see cref="IScheduler" /> lands here as one
 /// more forwarder — which is what keeps a decorator in somebody else's codebase compiling.
 /// </remarks>
-public class DelegatingScheduler : IScheduler, IBackfillingScheduler, IUpcomingFireTimesScheduler, IScheduleDescribingScheduler, IFiringWaitingScheduler, IStartupDeclarationsScheduler
+public class DelegatingScheduler : IScheduler, IBackfillingScheduler, IUpcomingFireTimesScheduler, IScheduleDescribingScheduler, IFiringWaitingScheduler, IStartupDeclarationsScheduler, IFireInstanceLogScheduler
 {
     private readonly IScheduler scheduler;
 
@@ -595,6 +595,20 @@ public class DelegatingScheduler : IScheduler, IBackfillingScheduler, IUpcomingF
     ValueTask<bool?> IStartupDeclarationsScheduler.IsDeclaredAtStartup(TriggerKey triggerKey, CancellationToken cancellationToken)
     {
         return StartupDeclarations.IsDeclaredAtStartup(InnermostScheduler(), triggerKey, cancellationToken);
+    }
+
+    /// <summary>
+    /// Reads a running firing's log where the scheduler is, when the scheduler this wrapping ends in can (#4437).
+    /// </summary>
+    /// <remarks>
+    /// There is nothing to compose it from otherwise, as for <see cref="IFiringWaitingScheduler.Watch" />: the lines
+    /// are in the process running the firing, which no <see cref="IScheduler" /> member reads.
+    /// </remarks>
+    ValueTask<FireInstanceLog> IFireInstanceLogScheduler.ReadFireInstanceLog(FireInstanceLogRequest request, CancellationToken cancellationToken)
+    {
+        return EndsIn<IFireInstanceLogScheduler>()
+            ? ((IFireInstanceLogScheduler) scheduler).ReadFireInstanceLog(request, cancellationToken)
+            : ValueTask.FromException<FireInstanceLog>(FireInstanceLogs.CannotRead(InnermostScheduler()));
     }
 
     /// <summary>

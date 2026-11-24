@@ -155,6 +155,9 @@ public class SchedulerRoutesTest
     [TestCase("GET", "schedulers/reporting/history/trigger-status", "QueryTriggerRunStatuses")]
     [TestCase("POST", "schedulers/reporting/history/trigger-status/fetch", "FetchTriggerRunStatuses")]
     [TestCase("GET", "schedulers/reporting/history/statistics?bucket=01:00:00", "QueryExecutionStatistics")]
+    [TestCase("GET", "schedulers/reporting/jobs/fire-instances", "QueryFireInstances")]
+    [TestCase("GET", "schedulers/reporting/jobs/fire-instances/NON_CLUSTERED638%2F1/log?after=3", "GetFireInstanceLog")]
+    [TestCase("GET", "schedulers/reporting/jobs/fire-instances/f-1/exists", "CheckJobExists")]
     public void MatchRoutesAPathAsAspNetCoreDoes(string method, string path, string routeName)
     {
         string matched = SchedulerRoutes.Match(method, path)?.Route.Name;

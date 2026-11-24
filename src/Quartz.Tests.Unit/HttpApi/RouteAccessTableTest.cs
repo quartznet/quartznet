@@ -47,7 +47,7 @@ public class RouteAccessTableTest
     [Test]
     public void TheLevelsAreCountedAsTheIssueStatesThem()
     {
-        SchedulerRoutes.All.Count(route => route.Access == SchedulerAccess.View).Should().Be(35);
+        SchedulerRoutes.All.Count(route => route.Access == SchedulerAccess.View).Should().Be(36);
         SchedulerRoutes.All.Count(route => route.Access == SchedulerAccess.Operate).Should().Be(22);
         SchedulerRoutes.All.Count(route => route.Access == SchedulerAccess.Administer).Should().Be(17);
     }
