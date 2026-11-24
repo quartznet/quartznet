@@ -4206,13 +4206,27 @@ body{
 /* A fixed layout: the checkbox, the time, the state and the execution group keep their widths whatever a row holds,
    and the trigger, the job and the schedule share what they leave. A key longer than its share wraps inside it,
    first between its words and at any character as the last resort, rather than push the table wider: an
-   automatic layout sizes a column by its longest unbreakable word, which a one-off trigger's MT_ name is. */
+   automatic layout sizes a column by its longest unbreakable word, which a one-off trigger's MT_ name is.
+   The table never gets narrower than its fixed columns and a floor for each shared one: below that it scrolls inside
+   its card, rather than squeeze the keys to nothing while the fixed columns keep their widths. */
 .qz-agenda-listing {
     container: qz-agenda-listing / inline-size;
 }
 
 .qz-agenda-table {
+    --qz-agenda-select: 2.75rem;
+    --qz-agenda-time: 6.5rem;
+    --qz-agenda-state: 9rem;
+    --qz-agenda-execution-group: 8.5rem;
+    --qz-agenda-key-floor: 12rem;
+    --qz-agenda-schedule-floor: 10rem;
+    --qz-agenda-fixed: calc(var(--qz-agenda-time) + var(--qz-agenda-state) + var(--qz-agenda-execution-group));
     table-layout: fixed;
+    min-width: calc(var(--qz-agenda-fixed) + 2 * var(--qz-agenda-key-floor) + var(--qz-agenda-schedule-floor));
+}
+
+.qz-agenda-table.qz-agenda-selectable {
+    --qz-agenda-fixed: calc(var(--qz-agenda-select) + var(--qz-agenda-time) + var(--qz-agenda-state) + var(--qz-agenda-execution-group));
 }
 
 .qz-agenda-table thead th {
@@ -4221,26 +4235,26 @@ body{
 
 .qz-agenda-table th.qz-col-select,
 .qz-agenda-table td.qz-col-select {
-    width: 2.75rem;
+    width: var(--qz-agenda-select);
     padding-left: var(--qz-space-sm);
     padding-right: var(--qz-space-sm);
 }
 
 .qz-agenda-table th.qz-agenda-col-time,
 .qz-agenda-table td.qz-agenda-col-time {
-    width: 6.5rem;
+    width: var(--qz-agenda-time);
     white-space: nowrap;
 }
 
 .qz-agenda-table th.qz-agenda-col-state,
 .qz-agenda-table td.qz-agenda-col-state {
-    width: 9rem;
+    width: var(--qz-agenda-state);
     white-space: nowrap;
 }
 
 .qz-agenda-table th.qz-agenda-col-execution-group,
 .qz-agenda-table td.qz-agenda-col-execution-group {
-    width: 8.5rem;
+    width: var(--qz-agenda-execution-group);
     overflow-wrap: anywhere;
 }
 
@@ -4261,9 +4275,12 @@ body{
 }
 
 /* Below a 1000px listing three shares would leave a key too little room: the schedule moves under the trigger's key,
-   and the two keys share what the fixed columns leave. Below 720px the table keeps 720px and scrolls inside its
-   card, never the page. */
+   and the two keys share what the fixed columns leave, down to their floor. */
 @container qz-agenda-listing (max-width: 999px) {
+    .qz-agenda-table {
+        min-width: calc(var(--qz-agenda-fixed) + 2 * var(--qz-agenda-key-floor));
+    }
+
     .qz-agenda-table th.qz-agenda-col-schedule,
     .qz-agenda-table td.qz-agenda-col-schedule {
         display: none;
@@ -4271,12 +4288,6 @@ body{
 
     .qz-agenda-table .qz-agenda-schedule-inline {
         display: block;
-    }
-}
-
-@container qz-agenda-listing (max-width: 719px) {
-    .qz-agenda-table {
-        min-width: 720px;
     }
 }
 
