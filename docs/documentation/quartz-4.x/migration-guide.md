@@ -18,7 +18,7 @@ If you are a new user starting with the latest version, you don't need to follow
 | An application's code from 3.x | [Package Changes](#package-changes): the first error a mixed 3.x/4.x project shows is a package problem. Then [The road from 3.x, phase by phase](#the-road-from-3-x-phase-by-phase) |
 | An F# application | [Upgrading an F# project](#upgrading-an-f-project) first. F# reports the same upgrade as more errors than it has causes |
 | From a 4.0 alpha or beta | [Appendix: if you ran a 4.0 pre-release](#appendix-if-you-ran-a-4-0-pre-release) |
-| From 4.8 | [Upgrading from 4.8 to 4.9](#upgrading-from-4-8-to-4-9) |
+| From 4.8 | [Upgrading from 4.8 to 4.9](#upgrading-from-4-8-to-4-9). Its database migration is optional |
 | From 4.7 | [Upgrading from 4.7 to 4.8](#upgrading-from-4-7-to-4-8). Then 4.8 to 4.9 |
 | From 4.6 | [Upgrading from 4.6 to 4.7](#upgrading-from-4-6-to-4-7). It has a database migration. Then 4.7 to 4.8 |
 | From 4.5 | [Upgrading from 4.5 to 4.6](#upgrading-from-4-5-to-4-6). It has a database migration. Then 4.6 to 4.7 |
@@ -64,6 +64,13 @@ An application on 4.8 compiles on 4.9 unchanged.
 | `QuartzMcpOptions` | `sealed`: `ReadOnly` (`true`), `SchedulerAuthorizationPolicy`, `OperationAuthorizationPolicy` (required when not read-only), `AllowedOrigins`, `ConfirmationLifetime` (5 minutes, from 30 seconds to 30 minutes), `MaxChangesPerMinute` (20, `0` for none). See [Options](packages/mcp.md#options) |
 | Log events `9500`–`9504` | `Quartz.Mcp`: a change, a refusal, a refused confirmation, a rate limit, a refused request. See [Records](packages/mcp.md#records) |
 | Dashboard host `Quartz:Dashboard:Mcp:Enabled`, `:Path`, `:ReadOnly` | The MCP endpoint for the host's fleet, off and read-only by default, to bearer callers only. See [MCP endpoint](packages/dashboard-host.md#mcp-endpoint) |
+| `TriggerRunStatus` | `sealed record (SchedulerName, Trigger, LastFiredAtUtc, LastResult)` with `JobRunStatus`'s `init` members: how one trigger's runs have gone (#4243). See [Read a trigger's status](how-tos/job-outcomes.md#read-a-trigger-s-status) |
+| `TriggerRunStatusQuery` | `PagedQuery` with `SchedulerName`, `Triggers` and `Failing` |
+| `IExecutionHistoryStore.QueryTriggerRunStatuses(TriggerRunStatusQuery, CancellationToken)` | A default interface member that throws `NotSupportedException`. The shipped stores implement it |
+| `IQuartzApiClient.QueryTriggerRunStatuses(TriggerRunStatusQuery, CancellationToken)` | `Quartz.Dashboard`. Default interface member: one page of the per-trigger run statuses, as `IExecutionHistoryStore.QueryTriggerRunStatuses`. The default throws `NotSupportedException`, and the Triggers listing leaves its *Last run* column out |
+| `AdoConstants.TableTriggerStatus` | `"TRIGGER_STATUS"` |
+| HTTP API `GET …/history/trigger-status` and `POST …/history/trigger-status/fetch` | Reads, at `View`; the fetch is served when `ReadOnly`. See [Trigger run status](packages/http-api.md#trigger-run-status) |
+| Dashboard: the Triggers listing's *Last run* with *failing ×N* | See [Trigger run status](packages/dashboard.md#trigger-run-status) |
 
 | Changed | What to check |
 |---|---|
@@ -76,6 +83,9 @@ An application on 4.8 compiles on 4.9 unchanged.
 | The dashboard's Action Log in a process that maps the HTTP API | Lists every API change and refusal for a role, with *Via HTTP API*, beside the dashboard's own. Before, it listed only the dashboard's buttons. See [Action Log](packages/dashboard.md#action-log) |
 | The dashboard's Action Log in a process that maps the MCP endpoint | Lists every MCP change and every change refused, with *Via MCP*, the user and the client's own name for itself |
 | `HttpClientException` raised for a status | Carries an `HttpRequestException` with the status as its `InnerException`. The message is unchanged |
+| `UsePersistentStore(s => s.UseExecutionHistory())` | Refuses to start without `QRTZ_TRIGGER_STATUS`, naming the script: run [`database/migrations/4.9/add_trigger_status_<db>.sql`](../database/schema-changes.md#version-4-9). Safe while 4.8 nodes run; their firings are not counted until every node is 4.9. A store keeping no history needs nothing |
+| Dashboard Triggers listing | With the *Last run* column, *Previous fire* gives way at a wider listing, and below 1080 px *Last run* moves under *State*. See [The schedule and fire times](packages/dashboard.md#the-schedule-and-fire-times) |
+| The *failing ×N* badge on the Jobs and Triggers listings | Drawn in the theme's stronger danger shade, for contrast above 4.5:1 |
 | `RAMJobStore`: `RescheduleJob` to a trigger of another key while continuations wait for the old one | They are settled as a deleted parent's: `OnAnyOutcome` ones released, the others parked in `Error` with `TriggerInError`. Before, they waited for the old key for ever. The persistent store already settled them, at its next misfire pass. See [When the parent is deleted](how-tos/job-continuations.md#when-the-parent-is-deleted) |
 | The dashboard's reschedule of a cron trigger (#4412) | Resets the trigger's previous fire time and a pending retry, and stores the edited expression's first fire after now. Before, the clone carried both over. A trigger paused on its own is paused again, with its reason and who asked, dated now; before, it came back unpaused. A trigger its group keeps paused stays so. The four other kinds, editable from 4.9, reset their count of fires too. See [Rescheduling a trigger](packages/dashboard.md#rescheduling-a-trigger) |
 | A calendar saved from the dashboard (#4413), in the Action Log and log events `9100` and `9101` | `CreateCalendar` for a new name and `ReplaceCalendar` for a stored one, with the calendar's type and, for a replace, `updateTriggers=true` or `false` in the message. A save with *Replace if existing* ticked was `UpsertCalendar`. An alert matching `UpsertCalendar` matches neither. See [Calendars](packages/dashboard.md#calendars) |

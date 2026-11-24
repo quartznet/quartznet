@@ -135,6 +135,8 @@ Seventy-two routes in four groups.
 | `GET` | `{ApiPath}/schedulers/{name}/history/job-status` | *paged* [job run statuses](#job-run-status) |
 | `GET` | `{ApiPath}/schedulers/{name}/history/job-status/{jobGroup}/{jobName}` | One job's run status; `404` when no run is recorded |
 | `POST` | `{ApiPath}/schedulers/{name}/history/job-status/fetch` | The run statuses of up to 1000 jobs; a read |
+| `GET` | `{ApiPath}/schedulers/{name}/history/trigger-status` | *paged* [trigger run statuses](#trigger-run-status), from 4.9 |
+| `POST` | `{ApiPath}/schedulers/{name}/history/trigger-status/fetch` | The run statuses of up to 1000 triggers; a read, from 4.9 |
 | `GET` | `{ApiPath}/schedulers/{name}/history/statistics` | [Runs per bucket](#run-statistics), by result, with duration percentiles |
 | `GET` | `{ApiPath}/schedulers/{name}/execution-limits` | `{ limits, useTriggerGroupWhenUnset }`; `limits` is `null` when nothing is limited. Keys are configuration's: a group, `_`, `*`, or a [prefix](../tutorial/execution-groups.md#per-tenant-limits) such as `tenant:*` |
 | `POST` | `{ApiPath}/schedulers/{name}/execution-limits` | empty; replaces the whole set |
@@ -663,6 +665,8 @@ missed) is in the container's `IExecutionHistoryStore`, served by eight routes:
 | `GET {ApiPath}/schedulers/{name}/history/job-status` | `skip`, `take`, `includeTotalCount`, `failing` | A page of [run statuses](#job-run-status) |
 | `GET {ApiPath}/schedulers/{name}/history/job-status/{jobGroup}/{jobName}` | none | One job's run status |
 | `POST {ApiPath}/schedulers/{name}/history/job-status/fetch` | body: `{ "jobs": [ { "name", "group" } ] }` | The statuses of those jobs |
+| `GET {ApiPath}/schedulers/{name}/history/trigger-status` | `skip`, `take`, `includeTotalCount`, `failing` | A page of [trigger run statuses](#trigger-run-status) |
+| `POST {ApiPath}/schedulers/{name}/history/trigger-status/fetch` | body: `{ "triggers": [ { "name", "group" } ] }` | The statuses of those triggers |
 | `GET {ApiPath}/schedulers/{name}/history/statistics` | the listing's filters, `jobGroup` alone, `bucket` | [Runs per bucket](#run-statistics) |
 
 ```json
@@ -791,6 +795,18 @@ From 4.4. A status per job, folded from every execution the store records, so it
 | A host before 4.4 | `404` without problem details: no such route |
 
 `HttpExecutionHistoryStore` raises `NotSupportedException` for both.
+
+### Trigger run status
+
+From 4.9. A status per trigger, with the job status's members and `trigger` for `job`. See
+[Read a trigger's status](../how-tos/job-outcomes.md#read-a-trigger-s-status).
+
+| Route | Answers |
+|---|---|
+| `GET …/history/trigger-status` | A page by trigger group, then name. `?failing=true` lists `consecutiveFailures > 0`; `false`, the rest |
+| `POST …/history/trigger-status/fetch` | The statuses of the triggers named, at most 1000; a trigger with no recorded run is absent. A read, served when `ReadOnly` |
+
+A store that keeps none answers `501`, as above. A host before 4.9 answers `404` without problem details.
 
 **`AddQuartzHttpApi()` records the history.** It calls `AddQuartzExecutionHistory()`, which installs one recorder
 into every scheduler in the container and keeps history in an in-memory store bounded by age and count, as the
@@ -1260,7 +1276,8 @@ services.AddQuartzHttpApi(options => options.ReadOnly = true);
 - Use it where the API only feeds a dashboard, a monitoring tool or a report. Route-level authorization would have
   to name thirty-odd routes.
 - **Mutation is decided per route, not per verb.** The fetches, `POST {ApiPath}/schedulers/{name}/jobs/fetch`,
-  `POST …/triggers/fetch` and `POST …/history/job-status/fetch`, are reads and are served. Every other non-`GET`
+  `POST …/triggers/fetch`, `POST …/history/job-status/fetch` and `POST …/history/trigger-status/fetch`, are reads and
+  are served. Every other non-`GET`
   is refused, including pause, resume, interrupt and reset-from-error-state.
 - It binds only this API. The scheduler keeps firing, and a dashboard mapped beside it has its own
   [`QuartzDashboardOptions.ReadOnly`](dashboard.md#read-only-mode). A dashboard *fronting* this API from another

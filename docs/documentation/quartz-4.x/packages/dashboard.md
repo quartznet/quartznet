@@ -174,9 +174,9 @@ An implementation must follow the interface's two promises to render like the sh
 
 **Members added during 4.x arrive as default interface members**, so your implementation keeps compiling. The
 default body reports the datum as unavailable, like `CannotReport`; override it when your source can answer.
-`GetJobRunStatus`, `GetJobRunStatuses` and `QueryExecutionStatistics` (4.4) throw `NotSupportedException` by
-default, and the pages leave out what they would show. `GetUpcomingFireTimes` (4.7) computes from `GetTrigger`
-and `GetCalendar` by default.
+`GetJobRunStatus`, `GetJobRunStatuses` and `QueryExecutionStatistics` (4.4), and `QueryJobRunStatuses` and
+`QueryTriggerRunStatuses` (4.9), throw `NotSupportedException` by default, and the pages leave out what they would
+show. `GetUpcomingFireTimes` (4.7) computes from `GetTrigger` and `GetCalendar` by default.
 
 ## The pages
 
@@ -289,7 +289,7 @@ detail page.
 | Listing | Detail page shows | Actions outside read-only mode |
 |---|---|---|
 | **Jobs**: job details and keys; from 4.4, each job's [last run, last success and *failing ×N*](#job-run-status) | the `JobDataMap`, the triggers pointing at the job, and its run status | trigger-now with overrides, pause, resume, delete; from 4.9, [*Add trigger*](#adding-a-trigger) |
-| **Triggers**: from 4.8, [the schedule in words, and next and previous fire](#the-schedule-and-fire-times); state, execution group | from 4.7, its [upcoming fires](#upcoming-fires); from 4.8, the schedule in words beside its expression; the trigger's `JobDataMap`, priority, calendar, misfire instruction and threshold, whether a simple trigger is measured from completion, preferred node, its [retry policy](../how-tos/retrying-failed-jobs.md), retries made for the current occurrence, its [overlap policy](../how-tos/overlap-policy.md) | pause, resume, unschedule, *reset error state*, a [schedule editor](#rescheduling-a-trigger) (for every kind from 4.9, cron before) and, from 4.3, [*Edit details*](#editing-a-trigger) and [*Backfill…*](#backfilling-a-trigger); on the listing, [bulk actions](#acting-on-a-selection) |
+| **Triggers**: from 4.8, [the schedule in words, and next and previous fire](#the-schedule-and-fire-times); from 4.9, each trigger's [last run and *failing ×N*](#trigger-run-status); state, execution group | from 4.7, its [upcoming fires](#upcoming-fires); from 4.8, the schedule in words beside its expression; the trigger's `JobDataMap`, priority, calendar, misfire instruction and threshold, whether a simple trigger is measured from completion, preferred node, its [retry policy](../how-tos/retrying-failed-jobs.md), retries made for the current occurrence, its [overlap policy](../how-tos/overlap-policy.md) | pause, resume, unschedule, *reset error state*, a [schedule editor](#rescheduling-a-trigger) (for every kind from 4.9, cron before) and, from 4.3, [*Edit details*](#editing-a-trigger) and [*Backfill…*](#backfilling-a-trigger); on the listing, [bulk actions](#acting-on-a-selection) |
 | **Calendars**: names; from 4.9, each one's type | from 4.9, [the calendar's own rules](#calendars), its time zone, the calendars under it and how many triggers use it | from 4.9, [create or edit](#calendars) a calendar of any of the six built-in types; delete |
 
 - `?state=` opens the trigger listing filtered, as the overview's histogram links do. Every other filter is a
@@ -327,11 +327,15 @@ From 4.8, the Triggers listing shows each trigger's schedule in words, in the tr
 A narrower listing gives way in steps, by its own width rather than the window's. A 1440 px window with the sidebar
 open gives the listing about 1120 px. The trigger's page shows everything a step hides.
 
-| Listing narrower than | Change |
-|---|---|
-| 1300 px | Execution group and Details are hidden |
-| 1080 px | Previous fire is hidden |
-| 920 px | The schedule moves under the trigger's key; below 748 px the table scrolls inside its card |
+| Listing narrower than | Without [*Last run*](#trigger-run-status) | With it |
+|---|---|---|
+| 1440 px | | Execution group and Details are hidden |
+| 1300 px | Execution group and Details are hidden | |
+| 1210 px | | Previous fire is hidden |
+| 1080 px | Previous fire is hidden | *Last run* moves under the state |
+| 920 px | The schedule moves under the trigger's key; below 748 px the table scrolls inside its card | The same |
+
+*Last run* adds 132 px, so with it each step comes earlier. It never goes: it says whether the schedule still works.
 
 ### Upcoming fires
 
@@ -1433,6 +1437,24 @@ occurrences in a row failed for good. See [Read a job's status](../how-tos/job-o
 
 A source that keeps no status (an `IDashboardHistoryStore` of your own, a scheduler in another process whose host
 is older than 4.4) leaves the columns and the panel out.
+
+### Trigger run status
+
+From 4.9, the Triggers listing shows each trigger's own last run, from the status the history keeps per trigger. See
+[Read a trigger's status](../how-tos/job-outcomes.md#read-a-trigger-s-status).
+
+| Shows | |
+|---|---|
+| *Last run* | The result, how long it took and how long ago it fired. Hover for the fire time in the dashboard's time zone, the node and the summary |
+| *failing ×N* | Under it, while the trigger's latest occurrences failed for good. Hover for the last failure's message; it opens that trigger's final failures in History |
+| `—` | No run of this trigger is recorded: it has not fired, or only manual runs, backfills and recoveries ran its job |
+
+- **One read per page and per *Refresh*,** for the page's triggers. Over HTTP it is one `POST …/history/trigger-status/fetch`.
+- **The column is left out** where the source keeps no trigger status: an `IDashboardHistoryStore` of your own, a
+  host older than 4.9, a database without `QRTZ_TRIGGER_STATUS`.
+- **During a rolling upgrade** a 4.8 node's firings are not counted, so *Last run* can be older than *Previous fire*,
+  and a 4.8 node's success leaves the badge.
+- Trigger Detail and Job Detail's table of triggers do not show it.
 
 ### Run statistics
 
