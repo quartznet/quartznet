@@ -622,7 +622,7 @@ internal sealed class InMemoryExecutionHistoryStore : IExecutionHistoryStore, IT
             Statuses[job] = JobRunStatusFold.Apply(current, entry);
             Bound(Statuses, maxStatuses, static status => status.LastFiredAtUtc);
 
-            if (!triggerFinalized && !entry.Manual)
+            if (TriggerRunStatusFold.Folds(entry, triggerFinalized))
             {
                 TriggerKey trigger = new(entry.TriggerName, entry.TriggerGroup);
                 TriggerStatuses.TryGetValue(trigger, out TriggerRunStatus? currentTrigger);

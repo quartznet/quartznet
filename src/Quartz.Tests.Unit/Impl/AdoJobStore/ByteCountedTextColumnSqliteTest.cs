@@ -225,6 +225,14 @@ public sealed class ByteCountedTextColumnSqliteTest
             status.Should().NotBeNull();
             status!.LastSummary.Should().Be(cut, "LAST_SUMMARY is cut as SUMMARY is, on the {0} run", entryId);
             status.LastFailureMessage.Should().Be(cut, "LAST_FAILURE_MESSAGE is cut as ERROR_MESSAGE is, on the {0} run", entryId);
+
+            TriggerRunStatus trigger = (await history.QueryTriggerRunStatuses(new TriggerRunStatusQuery
+            {
+                SchedulerName = SchedulerName,
+                Triggers = [new TriggerKey("once", Group)]
+            })).Items.Should().ContainSingle().Subject;
+            trigger.LastSummary.Should().Be(cut, "QRTZ_TRIGGER_STATUS cuts its texts as QRTZ_JOB_STATUS does, on the {0} run", entryId);
+            trigger.LastFailureMessage.Should().Be(cut);
         }
     }
 
