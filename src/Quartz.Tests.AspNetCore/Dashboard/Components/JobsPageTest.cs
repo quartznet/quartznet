@@ -147,6 +147,19 @@ public class JobsPageTest
             .MustHaveHappenedOnceExactly();
     }
 
+    /// <summary>
+    /// The listing scrolls inside its card when the card is narrower than its columns, as on a phone, rather
+    /// than giving the key nothing and running its actions off the card's edge.
+    /// </summary>
+    [Test]
+    public void TheListingScrollsInsideItsCard()
+    {
+        GivenJobs(DashboardComponentContext.JobKeys("reports", 1));
+        IRenderedComponent<Jobs> page = context.Render<Jobs>();
+
+        page.WaitForAssertion(() => page.FindAll(".qz-section > .qz-table-scroll > table.qz-jobs-table").Should().ContainSingle());
+    }
+
     private static IElement Button(IRenderedComponent<Jobs> page, string label)
     {
         return page.FindAll("button").First(button => button.TextContent.Trim() == label);

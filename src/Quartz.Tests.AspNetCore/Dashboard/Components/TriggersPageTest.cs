@@ -85,6 +85,19 @@ public class TriggersPageTest
         });
     }
 
+    /// <summary>
+    /// The listing scrolls inside its card when the card is narrower than its columns, as on a phone, rather
+    /// than giving the key nothing and running its actions off the card's edge.
+    /// </summary>
+    [Test]
+    public void TheListingScrollsInsideItsCard()
+    {
+        GivenTriggers(DashboardComponentContext.TriggerKeys("nightly", 1));
+        IRenderedComponent<TriggersPage> page = context.Render<TriggersPage>();
+
+        page.WaitForAssertion(() => page.FindAll(".qz-section > .qz-table-scroll > table.qz-triggers-table").Should().ContainSingle());
+    }
+
     private void GivenTriggers(IReadOnlyList<TriggerKeyDto> triggers)
     {
         A.CallTo(() => context.Api.GetTriggerKeys(A<string>._, A<string?>._)).Returns([.. triggers]);
