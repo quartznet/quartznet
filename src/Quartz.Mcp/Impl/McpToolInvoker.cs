@@ -235,15 +235,13 @@ internal sealed class McpToolInvoker
     }
 
     /// <summary>
-    /// The key a call names, read as the repository resolves it and with its target in the target's own spelling —
-    /// the key every policy is asked about.
+    /// The key a call names, read as the repository resolves it, then as every policy is asked about it by
+    /// <see cref="SchedulerLookup.PolicyKey" />: the target in its own spelling, and a window named by its bare name
+    /// behind its store's target.
     /// </summary>
     internal static SchedulerRef KeyOf(IServiceProvider services, ISchedulerRepository repository, string key)
     {
-        SchedulerRef read = SchedulerLookup.Read(repository, key.Trim());
-        return read.Target is null
-            ? read
-            : new SchedulerRef(read.SchedulerName, TargetedRequest.Canonical(services, read.SchedulerName, read.Target));
+        return SchedulerLookup.PolicyKey(services, SchedulerLookup.Read(repository, key.Trim()));
     }
 
     /// <summary>

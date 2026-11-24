@@ -59,6 +59,7 @@ public sealed class StoreAttachedWindowEndpointsTest
 
     private SqliteTestDatabase database = null!;
     private WebApplicationFactory<Program>? factory;
+    private WebApplicationFactory<Program>? root;
 
     [SetUp]
     public void CreateEmptyDatabase()
@@ -73,6 +74,12 @@ public sealed class StoreAttachedWindowEndpointsTest
         {
             await factory.DisposeAsync();
             factory = null;
+        }
+
+        if (root is not null)
+        {
+            await root.DisposeAsync();
+            root = null;
         }
 
         database.Dispose();
@@ -264,6 +271,33 @@ public sealed class StoreAttachedWindowEndpointsTest
     }
 
     /// <summary>
+    /// A window is registered under its bare name, so a request naming it without <c>?target=</c> reaches the scheduler
+    /// behind its store's target. Both policies are asked about that target: a policy that refuses <c>prod</c> refuses the
+    /// bare name as it refuses <c>?target=prod</c>, a read and a change alike (#4245 review).
+    /// </summary>
+    [Test]
+    public async Task ABareWindowNameIsAskedAboutWithItsStoresTarget()
+    {
+        await using ServiceProvider node = await Node();
+        await using AttachedStore store = await AttachedApplication(services =>
+        {
+            services.AddAuthorizationBuilder().AddPolicy("NotProd", policy => policy.RequireAssertion(static context =>
+                context.Resource is not SchedulerResource { Target: "prod" }));
+            services.AddQuartzHttpApi(options => options.SchedulerAuthorizationPolicy = "NotProd");
+        });
+        using HttpClient client = factory!.CreateClient();
+
+        using HttpResponseMessage targeted = await client.GetAsync($"schedulers/{Window}/jobs?target=prod");
+        using HttpResponseMessage bareRead = await client.GetAsync($"schedulers/{Window}/jobs");
+        using HttpResponseMessage bareChange = await client.PostAsync($"schedulers/{Window}/triggers/nightly/at-midnight/pause", content: null);
+
+        targeted.StatusCode.Should().Be(HttpStatusCode.Forbidden);
+        bareRead.StatusCode.Should().Be(HttpStatusCode.Forbidden, "the bare name reaches prod's scheduler, so the policy is asked about prod");
+        bareChange.StatusCode.Should().Be(HttpStatusCode.Forbidden);
+        (await Scalar("SELECT TRIGGER_STATE FROM QRTZ_TRIGGERS WHERE TRIGGER_NAME = 'at-midnight'")).Should().Be("WAITING", "a refused change reaches no store");
+    }
+
+    /// <summary>
     /// A scheduler of another process, which leaves its job and its trigger in the shared database.
     /// </summary>
     private async ValueTask<ServiceProvider> Node()
@@ -301,10 +335,15 @@ public sealed class StoreAttachedWindowEndpointsTest
     /// The store is attached by hand rather than through <c>AddQuartzDashboard</c>: the dashboard is only
     /// one way a window comes to be in a repository, and the routes under test must not depend on it.
     /// </remarks>
-    private async ValueTask<AttachedStore> AttachedApplication()
+    private async ValueTask<AttachedStore> AttachedApplication(Action<IServiceCollection>? configure = null)
     {
         TestContentRoot.Apply();
         factory = new WebApplicationFactory<Program>();
+        if (configure is not null)
+        {
+            root = factory;
+            factory = root.WithWebHostBuilder(builder => builder.ConfigureServices(configure));
+        }
 
         AttachedStore store = new(
             "prod",

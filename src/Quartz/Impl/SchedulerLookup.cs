@@ -19,6 +19,8 @@
 
 #endregion
 
+using Microsoft.Extensions.DependencyInjection;
+
 using Quartz.Configuration;
 using Quartz.Extensibility;
 
@@ -152,6 +154,76 @@ internal static class SchedulerLookup
         return repository is not null && Untargeted(repository, windows: null, key) is not null
             ? new SchedulerRef(key)
             : SchedulerRef.Parse(key);
+    }
+
+    /// <summary>
+    /// The key a policy is asked about for a call that names <paramref name="key" />: the identity the call reaches, its
+    /// target in the target's own spelling. The one rule the HTTP API and MCP ask their two policies by.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// A bare name that is a window onto an attached store reaches the scheduler behind that store's target, so it is
+    /// asked about with the target: a policy that refuses <c>prod</c> refuses <c>alpha</c> as it refuses
+    /// <c>prod/alpha</c>. A window is registered under its bare name, which is what used to let the bare name step
+    /// round a policy deciding by target (#4245). Any other bare name is asked about as given.
+    /// </para>
+    /// <para>
+    /// Targets match ignoring case, so a targeted key is asked about in the spelling the container holds the target in:
+    /// the registered target's, else that of the window or the proxy holding the scheduler under it. A policy written
+    /// against <c>w1</c> cannot be stepped round as <c>W1</c>. A target nothing holds stays as given, so the answer a
+    /// refused caller gets says nothing about which targets exist. The dashboard's client asks with the identity a key
+    /// resolved to, which carries the same target.
+    /// </para>
+    /// </remarks>
+    /// <param name="services">The container, or a scope of it.</param>
+    /// <param name="key">The key the call named: a bare name, or a name and its target.</param>
+    public static SchedulerRef PolicyKey(IServiceProvider services, SchedulerRef key)
+    {
+        ArgumentNullException.ThrowIfNull(services);
+        ArgumentNullException.ThrowIfNull(key);
+
+        ISchedulerRepository? repository = services.GetService<ISchedulerRepository>();
+        SchedulerWindowRegistry? windows = services.GetService<SchedulerWindowRegistry>();
+
+        if (key.Target is null)
+        {
+            return repository is not null && Untargeted(repository, windows, key.SchedulerName) is { IsWindow: true } window
+                ? new SchedulerRef(key.SchedulerName, window.Ref.Target)
+                : key;
+        }
+
+        return new SchedulerRef(key.SchedulerName, CanonicalTarget(services, repository, windows, key.SchedulerName, key.Target));
+    }
+
+    /// <summary>
+    /// <paramref name="target" /> in the spelling the container holds it in, or as given when it holds none.
+    /// </summary>
+    private static string CanonicalTarget(
+        IServiceProvider services,
+        ISchedulerRepository? repository,
+        SchedulerWindowRegistry? windows,
+        string schedulerName,
+        string target)
+    {
+        if (services.GetService<SchedulerTargets>()?.Find(target) is { } registered)
+        {
+            return registered.Name;
+        }
+
+        if (windows?.TargetOf(schedulerName) is { } window && string.Equals(window, target, StringComparison.OrdinalIgnoreCase))
+        {
+            return window;
+        }
+
+        foreach (IScheduler scheduler in repository?.LookupByName(schedulerName) ?? [])
+        {
+            if (scheduler is IProxyScheduler { Target: { } proxyTarget } && string.Equals(proxyTarget, target, StringComparison.OrdinalIgnoreCase))
+            {
+                return proxyTarget;
+            }
+        }
+
+        return target;
     }
 
     /// <summary>

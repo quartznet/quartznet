@@ -74,6 +74,31 @@ public sealed class StoreAttachedTargetTest
         database.Dispose();
     }
 
+    /// <summary>
+    /// A window is listed under its bare name, and the dashboard's client asks the scheduler policy about it with the
+    /// target its store was attached under, as the HTTP API and MCP do (#4245 review): a policy deciding by target
+    /// decides a window named by its bare name.
+    /// </summary>
+    [Test]
+    public async Task AWindowNamedByItsBareNameIsAskedAboutWithItsStoresTarget()
+    {
+        await using ServiceProvider node = await StartNode(ClusterScheduler);
+        TestSchedulerAuthorizationService authorization = new();
+        authorization.Allowed.Add(ClusterScheduler);
+
+        await using DashboardHost dashboard = await DashboardHost.Attached(
+            database,
+            services => services.Configure<QuartzDashboardOptions>(options => options.SchedulerAuthorizationPolicy = "Schedulers"),
+            authorization: authorization);
+
+        await dashboard.Client.QueryJobs(ClusterScheduler, new DashboardJobQuery());
+
+        authorization.Asked.Select(static x => x.Resource).OfType<SchedulerResource>()
+            .Should().Contain(resource => resource.SchedulerName == ClusterScheduler && resource.Target == Target)
+            .And.NotContain(resource => resource.SchedulerName == ClusterScheduler && resource.Target == null,
+                "the bare name reaches the scheduler behind the store's target");
+    }
+
     [Test]
     public async Task AWindowShowsTheClustersSchedule()
     {
@@ -642,7 +667,8 @@ public sealed class StoreAttachedTargetTest
         public static async ValueTask<DashboardHost> Attached(
             SqliteTestDatabase database,
             Action<IServiceCollection>? configure = null,
-            bool history = true)
+            bool history = true,
+            TestSchedulerAuthorizationService? authorization = null)
         {
             ServiceCollection services = new();
             services.AddLogging();
@@ -682,7 +708,7 @@ public sealed class StoreAttachedTargetTest
                 options,
                 provider.GetRequiredService<IExecutionHistoryStore>(),
                 provider,
-                new SchedulerAuthorization(options, new TestSchedulerAuthorizationService(), new TestAuthenticationStateProvider()),
+                new SchedulerAuthorization(options, authorization ?? new TestSchedulerAuthorizationService(), new TestAuthenticationStateProvider()),
                 provider.GetRequiredService<AttachedStores>());
 
             return new DashboardHost(provider, client);

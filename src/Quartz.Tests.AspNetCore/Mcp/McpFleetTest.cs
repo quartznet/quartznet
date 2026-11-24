@@ -10,6 +10,7 @@ using Microsoft.Extensions.Time.Testing;
 
 using ModelContextProtocol.Client;
 
+using Quartz.AspNetCore;
 using Quartz.Configuration;
 using Quartz.Extensibility;
 using Quartz.HttpApiContract;
@@ -176,6 +177,33 @@ public sealed class McpFleetTest
         (await theNode.GetTriggerState(new TriggerKey("at-midnight", "nightly"))).Should().Be(TriggerState.Paused, "a window writes the store the node reads");
     }
 
+    /// <summary>
+    /// A window is registered under its bare name, and a call naming it so reaches the scheduler behind its store's target:
+    /// the policies are asked about that target, so a policy that refuses <c>prod</c> refuses <c>alpha</c> as it refuses
+    /// <c>prod/alpha</c> (#4245 review).
+    /// </summary>
+    [Test]
+    public async Task AWindowNamedByItsBareNameIsAskedAboutWithItsStoresTarget()
+    {
+        await StartWithWindow(
+            mcp: options => options.SchedulerAuthorizationPolicy = NotProd,
+            services: services => services.AddAuthorizationBuilder().AddPolicy(NotProd, policy => policy.RequireAssertion(static context =>
+                context.Resource is not SchedulerResource { Target: "prod" })));
+        McpClient @operator = await host!.Connect(RoleAuthenticationExtensions.Operator);
+
+        JsonElement targeted = McpTestHost.Error(await McpTestHost.Call(@operator, "list_jobs", new { scheduler = "prod/alpha" }));
+        JsonElement bareRead = McpTestHost.Error(await McpTestHost.Call(@operator, "list_jobs", new { scheduler = "alpha" }));
+        JsonElement bareChange = McpTestHost.Error(await McpTestHost.Call(@operator, "pause_trigger", new { scheduler = "alpha", group = "nightly", name = "at-midnight", reason = "around the policy" }));
+
+        targeted.GetProperty("code").GetString().Should().Be("forbidden");
+        bareRead.GetProperty("code").GetString().Should().Be("forbidden", "the bare name reaches prod's scheduler, so the policy is asked about prod");
+        bareChange.GetProperty("code").GetString().Should().Be("forbidden");
+        IScheduler theNode = await node!.GetRequiredService<ISchedulerFactory>().GetScheduler();
+        (await theNode.GetTriggerState(new TriggerKey("at-midnight", "nightly"))).Should().Be(TriggerState.Normal, "a refused change reaches no store");
+    }
+
+    private const string NotProd = "NotProd";
+
     [Test]
     public async Task ListSchedulersNamesEveryKeyOfTheFleet()
     {
@@ -248,13 +276,13 @@ public sealed class McpFleetTest
         return await host.Connect(RoleAuthenticationExtensions.Operator);
     }
 
-    private async Task StartWithWindow()
+    private async Task StartWithWindow(Action<QuartzMcpOptions>? mcp = null, Action<IServiceCollection>? services = null)
     {
         database = new SqliteTestDatabase("mcp-window");
 
-        ServiceCollection services = new();
-        services.AddLogging();
-        services.AddQuartz(quartz =>
+        ServiceCollection nodeServices = new();
+        nodeServices.AddLogging();
+        nodeServices.AddQuartz(quartz =>
         {
             quartz.ConfigureScheduler(options => options.InstanceName = "alpha");
             quartz.UsePersistentStore(persistent =>
@@ -263,7 +291,7 @@ public sealed class McpFleetTest
                 persistent.ProvisionSchema();
             });
         });
-        node = services.BuildServiceProvider();
+        node = nodeServices.BuildServiceProvider();
         IScheduler theNode = await node.GetRequiredService<ISchedulerFactory>().GetScheduler();
         await theNode.ScheduleJob(
             JobBuilder.Create<DummyJob>().WithIdentity("nightly", "batch").StoreDurably().Build(),
@@ -273,7 +301,7 @@ public sealed class McpFleetTest
         WriteCheckIn("alpha", "node-live", DateTimeOffset.UtcNow);
         WriteCheckIn("alpha", "node-gone", DateTimeOffset.UtcNow.AddHours(-1));
 
-        host = await McpTestHost.Start();
+        host = await McpTestHost.Start(mcp: mcp, services: services);
         store = new AttachedStore("prod", recipe => recipe.UseSqlite(SqliteFactory.Instance, database.ConnectionString), host.Services);
         (await store.Synchronize()).Should().Equal(["alpha"]);
     }
