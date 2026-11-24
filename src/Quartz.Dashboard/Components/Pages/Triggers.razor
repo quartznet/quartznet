@@ -73,7 +73,9 @@
                                 role="link"
                                 @onclick="() => NavigateToTrigger(triggerGroup, triggerName)"
                                 @onkeydown="args => OnTriggerRowKeyDown(args, triggerGroup, triggerName)">
-                                <td class="qz-col-key">
+                                @* A key pressed on a control in the row is that control's: Enter on Unschedule unschedules, it
+                                   does not also open the trigger. Only a key pressed on the row itself navigates. *@
+                                <td class="qz-col-key" @onkeydown:stopPropagation="true">
                                     <KeyBadge GroupName="@triggerGroup" ItemName="@triggerName" />
                                 </td>
                                 <td class="qz-col-state">
@@ -92,12 +94,12 @@
                                         <span class="qz-muted">&mdash;</span>
                                     }
                                 </td>
-                                <td class="qz-col-details">
+                                <td class="qz-col-details" @onkeydown:stopPropagation="true">
                                     <a class="qz-details-link" href="@GetTriggerPath(triggerGroup, triggerName)" @onclick:stopPropagation="true">View details</a>
                                 </td>
                                 @if (!IsReadOnly)
                                 {
-                                    <td class="qz-col-actions">
+                                    <td class="qz-col-actions" @onkeydown:stopPropagation="true">
                                         <div class="qz-actions" @onclick:stopPropagation="true">
                                             <button type="button" class="qz-button" @onclick="() => PauseTrigger(triggerGroup, triggerName)">Pause</button>
                                             <button type="button" class="qz-button" @onclick="() => ResumeTrigger(triggerGroup, triggerName)">Resume</button>

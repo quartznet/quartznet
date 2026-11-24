@@ -70,15 +70,17 @@
                                 role="link"
                                 @onclick="() => NavigateToJob(jobGroup, jobName)"
                                 @onkeydown="args => OnJobRowKeyDown(args, jobGroup, jobName)">
-                                <td class="qz-col-key">
+                                @* A key pressed on a control in the row is that control's: Enter on Delete deletes, it does not
+                                   also open the job. Only a key pressed on the row itself navigates. *@
+                                <td class="qz-col-key" @onkeydown:stopPropagation="true">
                                     <KeyBadge GroupName="@jobGroup" ItemName="@jobName" />
                                 </td>
-                                <td class="qz-col-details">
+                                <td class="qz-col-details" @onkeydown:stopPropagation="true">
                                     <a class="qz-details-link" href="@GetJobDetailPath(jobGroup, jobName)" @onclick:stopPropagation="true">View details</a>
                                 </td>
                                 @if (!IsReadOnly)
                                 {
-                                    <td class="qz-col-actions">
+                                    <td class="qz-col-actions" @onkeydown:stopPropagation="true">
                                         <div class="qz-actions" @onclick:stopPropagation="true">
                                             <button type="button" class="qz-button" @onclick="() => PauseJob(jobGroup, jobName)">Pause</button>
                                             <button type="button" class="qz-button" @onclick="() => ResumeJob(jobGroup, jobName)">Resume</button>
