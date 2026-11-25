@@ -397,7 +397,9 @@ internal static class QuartzServiceRegistration
     /// process keep theirs apart. They cannot arrive through the store's constructor:
     /// <see cref="Meters"/> is internal and the constructor is public, and five different registrations
     /// build the store. The lookup goes through <see cref="JobStores.Unwrap" />, because an application
-    /// may have wrapped its store and the measurements belong to the one talking to the database.
+    /// may have wrapped its store and the measurements belong to the one talking to the database. The same
+    /// store is told <see cref="QuartzSchedulerOptions.TraceRootStoreOperations" />, which its misfire and
+    /// check-in loops apply to their own passes.
     /// </para>
     /// <para>
     /// And the store is wrapped for tracing — once, outermost, over whatever the application layered
@@ -416,6 +418,7 @@ internal static class QuartzServiceRegistration
         if (JobStores.Unwrap(jobStore) is AdoJobStoreBase persistent)
         {
             persistent.Meters = meters;
+            persistent.TraceRootStoreOperations = traceRootStoreOperations;
         }
 
         return new TracingJobStore(jobStore, meters, timeProvider, recordExceptionSpanEvents, traceRootStoreOperations);

@@ -77,6 +77,35 @@ internal abstract partial class AdoJobStoreBase : IJobStore, ISharedExecutionGro
     internal Meters Meters { get; set; } = Meters.Shared;
 
     /// <summary>
+    /// Whether a misfire or check-in pass made outside any activity leaves the driver's spans as roots, or
+    /// runs under the stand-in a store call does. See <see cref="QuartzSchedulerOptions.TraceRootStoreOperations" />.
+    /// </summary>
+    /// <remarks>
+    /// Assigned by the same registration as <see cref="Meters" />, for the same reason. A store
+    /// constructed by hand keeps the default, which leaves its passes as they were.
+    /// </remarks>
+    internal bool TraceRootStoreOperations { get; set; } = true;
+
+    /// <summary>
+    /// Starts the stand-in a misfire or check-in pass runs under when root work is not traced, or returns
+    /// <see langword="null" /> when the pass should run as it is. Stopped by the method that runs the pass.
+    /// </summary>
+    /// <remarks>
+    /// The rule <c>TracingJobStore</c> applies to a store call: only when the option is off, nothing is
+    /// current, and the Quartz source has a listener. The first check-in runs from the call that starts
+    /// the scheduler, and inside that caller's activity it stays in the caller's trace.
+    /// </remarks>
+    internal System.Diagnostics.Activity? StartUnrecordedPass(string operationName)
+    {
+        if (TraceRootStoreOperations || System.Diagnostics.Activity.Current is not null || !QuartzActivitySource.Instance.HasListeners())
+        {
+            return null;
+        }
+
+        return QuartzActivitySource.Unrecorded(operationName).Start();
+    }
+
+    /// <summary>
     /// Initializes a new instance of the <see cref="AdoJobStoreBase"/> class.
     /// </summary>
     /// <param name="dependencies">

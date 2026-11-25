@@ -40,6 +40,9 @@ internal sealed class ClusterManager
     /// </summary>
     private static readonly TimeSpan ShortPause = TimeSpan.FromMilliseconds(100);
 
+    /// <summary>The name of the unrecorded stand-in a check-in runs under. Nothing exports it.</summary>
+    private const string CheckInPassName = "Quartz.ClusterManager.CheckIn";
+
     private int numFails;
 
     /// <summary>
@@ -139,8 +142,15 @@ internal sealed class ClusterManager
         }
     }
 
+    /// <remarks>
+    /// The pass is wrapped here, in the method that runs it, rather than around the loop's iteration: the
+    /// stand-in is started and stopped in this method's own execution context, so it never stays current
+    /// for the loop (#3797), and the first check-in that <see cref="Initialize" /> runs is covered too.
+    /// </remarks>
     private async ValueTask<bool> Manage()
     {
+        using Activity? pass = jobStoreSupport.StartUnrecordedPass(CheckInPassName);
+
         bool res = false;
         try
         {

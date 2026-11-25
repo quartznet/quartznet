@@ -157,13 +157,16 @@ public sealed class QuartzSchedulerOptions
     /// and nothing is current while it does, so with this on an idle scheduler still exports a trace every
     /// round. Turned off, such a call is made current as an activity that is not sampled: no span is
     /// emitted, and under a parent-based sampler — OpenTelemetry's default — the spans the database driver
-    /// opens beneath it are dropped with it rather than becoming roots of their own.
+    /// opens beneath it are dropped with it rather than becoming roots of their own. The ADO.NET store's
+    /// misfire scan and cluster check-in, which query the database outside any store call, run each pass
+    /// under the same activity.
     /// </para>
     /// <para>
     /// The rule is about the ambient activity, not about the loop. A store call made inside the caller's
-    /// activity — scheduling a job from a request, say — keeps its span in that trace either way, and a
-    /// call made outside any activity at startup loses its span as the loop's do. The
-    /// <c>quartz.jobstore.operation.duration</c> histogram and the acquisition instruments are recorded
+    /// activity — scheduling a job from a request, say — keeps its span in that trace either way, as does
+    /// the first check-in, which runs from <c>Start()</c>, and a call made outside any activity at startup
+    /// loses its span as the loop's do. The <c>quartz.jobstore.operation.duration</c> and
+    /// <c>quartz.cluster.checkin.duration</c> histograms and the acquisition instruments are recorded
     /// either way.
     /// </para>
     /// </remarks>

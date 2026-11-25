@@ -25,8 +25,10 @@ using System.Text;
 
 using FakeItEasy;
 
+using Microsoft.Data.Sqlite;
 using Microsoft.Extensions.DependencyInjection;
 
+using Quartz.Core;
 using Quartz.Diagnostics;
 using Quartz.Extensibility;
 using Quartz.Impl;
@@ -549,7 +551,7 @@ public sealed class TracingJobStoreTest
     public async Task WithRootOperationsOff_ACallOutsideAnyActivity_EmitsNoSpanAndItsChildIsDropped()
     {
         using ParentBasedTracing tracing = new();
-        IJobStore store = await tracing.Decorated(schedulerName, traceRootOperations: false);
+        IJobStore store = await DecoratedUnder(tracing, traceRootOperations: false);
 
         Activity.Current = null;
         await store.PauseAll();
@@ -613,7 +615,7 @@ public sealed class TracingJobStoreTest
     public async Task WithRootOperationsOff_AFailedCallOutsideAnyActivity_IsMeasuredAndLeavesNothingCurrent()
     {
         using ParentBasedTracing tracing = new();
-        IJobStore store = await tracing.Decorated(schedulerName, traceRootOperations: false);
+        IJobStore store = await DecoratedUnder(tracing, traceRootOperations: false);
         A.CallTo(() => JobStores.Unwrap(store).ResumeAll(A<CancellationToken>.Ignored))
             .ReturnsLazily(() => Fail());
 
@@ -646,7 +648,7 @@ public sealed class TracingJobStoreTest
     public async Task WithRootOperationsOff_ASynchronousThrowOutsideAnyActivity_LeavesNothingCurrent()
     {
         using ParentBasedTracing tracing = new();
-        IJobStore store = await tracing.Decorated(schedulerName, traceRootOperations: false);
+        IJobStore store = await DecoratedUnder(tracing, traceRootOperations: false);
         A.CallTo(() => JobStores.Unwrap(store).ResumeAll(A<CancellationToken>.Ignored))
             .Throws(new JobPersistenceException("the database is gone"));
 
@@ -666,7 +668,7 @@ public sealed class TracingJobStoreTest
     public async Task WithRootOperationsOn_ACallOutsideAnyActivity_IsTheRootOfItsChild()
     {
         using ParentBasedTracing tracing = new();
-        IJobStore store = await tracing.Decorated(schedulerName, traceRootOperations: true);
+        IJobStore store = await DecoratedUnder(tracing, traceRootOperations: true);
 
         Activity.Current = null;
         await store.PauseAll();
@@ -687,7 +689,7 @@ public sealed class TracingJobStoreTest
     public async Task WithRootOperationsOff_ACallInsideTheCallersActivity_KeepsItsSpanInTheCallersTrace()
     {
         using ParentBasedTracing tracing = new();
-        IJobStore store = await tracing.Decorated(schedulerName, traceRootOperations: false);
+        IJobStore store = await DecoratedUnder(tracing, traceRootOperations: false);
 
         Activity.Current = null;
         using (Activity caller = tracing.StartCaller())
@@ -729,6 +731,32 @@ public sealed class TracingJobStoreTest
             stoppedActivities.Should().NotContain(a => a.OperationName == OperationName.JobStore.AddJob,
                 "the call was made outside any activity and the scheduler was configured to trace no such call");
         }
+    }
+
+    /// <summary>
+    /// #4375: the option reaches the ADO.NET store under the decorator, whose misfire and check-in loops
+    /// apply it to their own passes.
+    /// </summary>
+    [TestCase(true)]
+    [TestCase(false)]
+    public void TheSchedulerOption_ReachesThePersistentStore(bool traceRootStoreOperations)
+    {
+        ServiceCollection services = new();
+        services.AddQuartz(quartz =>
+        {
+            quartz.ConfigureScheduler(options =>
+            {
+                options.InstanceName = schedulerName;
+                options.TraceRootStoreOperations = traceRootStoreOperations;
+            });
+            quartz.UsePersistentStore(store => store.UseSqlite(SqliteFactory.Instance, "Data Source=:memory:"));
+        });
+
+        using ServiceProvider provider = services.BuildServiceProvider();
+        IJobStore jobStore = provider.GetRequiredService<QuartzSchedulerResources>().JobStore;
+
+        JobStores.Unwrap(jobStore).Should().BeAssignableTo<AdoJobStoreBase>()
+            .Which.TraceRootStoreOperations.Should().Be(traceRootStoreOperations);
     }
 
     /// <summary>
@@ -880,98 +908,23 @@ public sealed class TracingJobStoreTest
     }
 
     /// <summary>
-    /// A store source of its own, a second source standing in for the database driver, and a listener
-    /// on both whose sampler is parent-based, as OpenTelemetry's default is.
+    /// A store on <paramref name="tracing" />'s own source, whose <c>PauseAll</c> suspends inside a span
+    /// the driver opens, as a database-backed store's command does.
     /// </summary>
-    /// <remarks>
-    /// Its own sources rather than the Quartz one, so that the fixture's listener, which records every
-    /// Quartz activity whatever its parent, has no say in what is sampled here.
-    /// </remarks>
-    private sealed class ParentBasedTracing : IDisposable
+    private async Task<IJobStore> DecoratedUnder(ParentBasedTracing tracing, bool traceRootOperations)
     {
-        internal const string ChildName = "db.query";
+        IJobStore inner = StubStore();
+        A.CallTo(() => inner.PauseAll(A<CancellationToken>.Ignored)).ReturnsLazily(() => tracing.Query());
 
-        private readonly string id = Guid.NewGuid().ToString("N");
-        private readonly ActivitySource storeSource;
-        private readonly ActivitySource driverSource;
-        private readonly ActivitySource callerSource;
-        private readonly ActivityListener listener;
-        private readonly List<Activity> stopped = [];
-        private int childrenStarted;
-
-        internal ParentBasedTracing()
-        {
-            storeSource = new ActivitySource($"Quartz.Tests.Store.{id}");
-            driverSource = new ActivitySource($"Quartz.Tests.Driver.{id}");
-            callerSource = new ActivitySource($"Quartz.Tests.Caller.{id}");
-
-            listener = new ActivityListener
-            {
-                ShouldListenTo = source => source.Name.EndsWith(id, StringComparison.Ordinal),
-                Sample = static (ref ActivityCreationOptions<ActivityContext> options) =>
-                    options.Parent == default || options.Parent.TraceFlags.HasFlag(ActivityTraceFlags.Recorded)
-                        ? ActivitySamplingResult.AllDataAndRecorded
-                        : ActivitySamplingResult.None,
-                ActivityStopped = activity =>
-                {
-                    lock (stopped)
-                    {
-                        stopped.Add(activity);
-                    }
-                },
-            };
-            ActivitySource.AddActivityListener(listener);
-        }
-
-        internal List<Activity> Stopped
-        {
-            get
-            {
-                lock (stopped)
-                {
-                    return [.. stopped];
-                }
-            }
-        }
-
-        internal int ChildrenStarted => Volatile.Read(ref childrenStarted);
-
-        internal Activity StartCaller() => callerSource.StartActivity("caller")!;
-
-        /// <summary>
-        /// A store whose <c>PauseAll</c> suspends inside a span the driver opens, as a database-backed
-        /// store's command does.
-        /// </summary>
-        internal async Task<IJobStore> Decorated(string schedulerName, bool traceRootOperations)
-        {
-            IJobStore inner = StubStore();
-            A.CallTo(() => inner.PauseAll(A<CancellationToken>.Ignored)).ReturnsLazily(() => Query());
-
-            SchedulerIdentity identity = new() { SchedulerName = schedulerName, InstanceId = "node-1" };
-            TracingJobStore store = new(
-                inner,
-                new Meters(meterFactory: null),
-                TimeProvider.System,
-                storeSource,
-                traceRootOperations: traceRootOperations);
-            await store.Initialize(identity);
-            return store;
-        }
-
-        public void Dispose()
-        {
-            listener.Dispose();
-            storeSource.Dispose();
-            driverSource.Dispose();
-            callerSource.Dispose();
-        }
-
-        private async ValueTask Query()
-        {
-            Interlocked.Increment(ref childrenStarted);
-            using Activity query = driverSource.StartActivity(ChildName, ActivityKind.Client);
-            await Task.Yield();
-        }
+        SchedulerIdentity identity = new() { SchedulerName = schedulerName, InstanceId = "node-1" };
+        TracingJobStore store = new(
+            inner,
+            new Meters(meterFactory: null),
+            TimeProvider.System,
+            tracing.StoreSource,
+            traceRootOperations: traceRootOperations);
+        await store.Initialize(identity);
+        return store;
     }
 
     private static IJobStore StubStore()

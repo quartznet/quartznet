@@ -754,7 +754,7 @@ internal sealed class TracingJobStore : DelegatingJobStore, ISharedExecutionGrou
             }
             else
             {
-                activity = Unrecorded(operationName);
+                activity = QuartzActivitySource.Unrecorded(operationName);
                 unrecorded = true;
             }
         }
@@ -774,28 +774,6 @@ internal sealed class TracingJobStore : DelegatingJobStore, ISharedExecutionGrou
         }
 
         return new StoreOperation(this, activity, unrecorded, operationName, measured ? timeProvider.GetTimestamp() : 0, measured);
-    }
-
-    /// <summary>
-    /// What a store call made outside any activity is made current as, when such calls are not traced:
-    /// an activity no source's listener is asked about and nothing records.
-    /// </summary>
-    /// <remarks>
-    /// Leaving nothing current instead would not leave the call untraced. The database driver underneath
-    /// opens a span for each command, and with no parent each of those would become a root of its own: one
-    /// trace per round of the scheduler's loop would become one trace per query (#4343). Current and not
-    /// sampled, it is the parent those spans take, and a parent-based sampler — OpenTelemetry's default —
-    /// drops them with it. Created directly rather than through the source, so that no listener's sampler
-    /// gets the chance to record it, and only when the source has a listener, so a scheduler nobody is
-    /// watching still pays nothing.
-    /// </remarks>
-    private static Activity Unrecorded(string operationName)
-    {
-        Activity activity = new(operationName);
-        activity.SetIdFormat(ActivityIdFormat.W3C);
-        activity.ActivityTraceFlags = ActivityTraceFlags.None;
-        activity.IsAllDataRequested = false;
-        return activity;
     }
 
     /// <summary>
@@ -961,7 +939,7 @@ internal sealed class TracingJobStore : DelegatingJobStore, ISharedExecutionGrou
 
         /// <summary>
         /// Whether <see cref="activity" /> is the stand-in made current for a call that is not traced,
-        /// rather than a span. See <see cref="Unrecorded" />.
+        /// rather than a span. See <see cref="QuartzActivitySource.Unrecorded" />.
         /// </summary>
         private readonly bool unrecorded;
 
