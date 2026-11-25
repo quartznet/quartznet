@@ -34,6 +34,9 @@ internal sealed class MisfireHandler
     // This prevents hanging if the scheduler was disposed before it could schedule the task.
     private static readonly TimeSpan ShutdownTimeout = TimeSpan.FromSeconds(1);
 
+    /// <summary>The name of the unrecorded stand-in a misfire scan runs under. Nothing exports it.</summary>
+    private const string ScanPassName = "Quartz.MisfireHandler.Scan";
+
     /// <remarks>
     /// The logger is handed over rather than created here, for the same reason
     /// <see cref="ClusterManager" />'s is: it belongs to the store, and through it to the container.
@@ -185,8 +188,15 @@ internal sealed class MisfireHandler
         }
     }
 
+    /// <remarks>
+    /// The pass is wrapped here, in the method that runs it, and not around the sleep: the stand-in is
+    /// started and stopped in this method's own execution context, so it never stays current for the loop
+    /// (#3797).
+    /// </remarks>
     private async ValueTask<RecoverMisfiredJobsResult> Manage()
     {
+        using Activity? pass = jobStoreSupport.StartUnrecordedPass(ScanPassName);
+
         try
         {
             logger.ScanningForMisfires();

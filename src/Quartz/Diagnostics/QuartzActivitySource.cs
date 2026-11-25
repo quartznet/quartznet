@@ -10,6 +10,31 @@ internal static class QuartzActivitySource
     internal static readonly ActivitySource Instance = new(QuartzInstrumentation.ActivitySourceName, QuartzInstrumentation.Version);
 
     /// <summary>
+    /// What a store call, or a pass of the ADO.NET store's own misfire or check-in loop, is made current
+    /// as when it runs outside any activity and such work is not traced: an activity no source's listener
+    /// is asked about and nothing records.
+    /// </summary>
+    /// <remarks>
+    /// Leaving nothing current instead would not leave the work untraced. The database driver underneath
+    /// opens a span for each command, and with no parent each of those would become a root of its own: one
+    /// trace per round of the scheduler's loop would become one trace per query (#4343), and every misfire
+    /// scan and cluster check-in a trace of its own (#4375). Current and not sampled, it is the parent those
+    /// spans take, and a parent-based sampler — OpenTelemetry's default — drops them with it. Created
+    /// directly rather than through the source, so that no listener's sampler gets the chance to record it.
+    /// Callers make it only when the Quartz source has a listener, so a scheduler nobody is watching still
+    /// pays nothing, and only when nothing is current, so work done inside a caller's activity stays in that
+    /// trace.
+    /// </remarks>
+    internal static Activity Unrecorded(string operationName)
+    {
+        Activity activity = new(operationName);
+        activity.SetIdFormat(ActivityIdFormat.W3C);
+        activity.ActivityTraceFlags = ActivityTraceFlags.None;
+        activity.IsAllDataRequested = false;
+        return activity;
+    }
+
+    /// <summary>
     /// Opens the span a firing is traced on, timed by the clock the rest of the firing is timed by.
     /// </summary>
     /// <remarks>
