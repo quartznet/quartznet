@@ -67,7 +67,7 @@ internal abstract partial class AdoJobStoreBase
         IOperableTrigger trigger,
         CancellationToken cancellationToken = default)
     {
-        return ReleaseAcquiredTrigger(conn, trigger.Key, trigger.JobKey, trigger.FireInstanceId!, cancellationToken);
+        return ReleaseAcquiredTrigger(conn, trigger.Key, trigger.JobKey, trigger.FireInstanceId!, trigger.NextFireTimeUtc, cancellationToken);
     }
 
     /// <summary>
@@ -105,7 +105,10 @@ internal abstract partial class AdoJobStoreBase
     /// A release whose row is gone moves nothing. The trigger it reserved was replaced, which cancels its
     /// reservations, or a peer recovered this node's rows; the trigger row is then the replacement, perhaps
     /// another node's acquisition of it, or the recovery's. Moved to <c>WAITING</c>, it let a third node
-    /// acquire a fire time another node held (#4323).
+    /// acquire a fire time another node held (#4323). When the reservation row is still there, the trigger
+    /// row is moved only while its stored next fire time is still the one this node acquired: after a pause
+    /// and resume (or a <c>BLOCKED</c> round-trip) another node may have fired that fire time and acquired
+    /// the next one while this node's reservation row remained (#4349).
     /// </para>
     /// </remarks>
     private ValueTask ReleaseAcquiredTrigger(
@@ -113,6 +116,7 @@ internal abstract partial class AdoJobStoreBase
         TriggerKey triggerKey,
         JobKey jobKey,
         string fireInstanceId,
+        DateTimeOffset? nextFireTimeUtc,
         CancellationToken cancellationToken)
     {
         return Guarded(
@@ -129,7 +133,7 @@ internal abstract partial class AdoJobStoreBase
                 }
 
                 StoredTriggerState released = BlockedState(firings, StoredTriggerState.Waiting, excludedFireInstanceId: fireInstanceId);
-                await Delegate.UpdateTriggerStateFromOtherState(conn, triggerKey, released, StoredTriggerState.Acquired, cancellationToken).ConfigureAwait(false);
+                await UpdateTriggerStateForRelease(conn, triggerKey, released, StoredTriggerState.Acquired, nextFireTimeUtc, cancellationToken).ConfigureAwait(false);
 
                 if (released != StoredTriggerState.Waiting)
                 {
@@ -146,10 +150,23 @@ internal abstract partial class AdoJobStoreBase
                 }
                 else
                 {
-                    await Delegate.UpdateTriggerStateFromOtherState(conn, triggerKey, StoredTriggerState.Waiting, StoredTriggerState.Blocked, cancellationToken).ConfigureAwait(false);
+                    await UpdateTriggerStateForRelease(conn, triggerKey, StoredTriggerState.Waiting, StoredTriggerState.Blocked, nextFireTimeUtc, cancellationToken).ConfigureAwait(false);
                 }
             },
             "release acquired trigger");
+    }
+
+    private ValueTask<int> UpdateTriggerStateForRelease(
+        ConnectionAndTransactionHolder conn,
+        TriggerKey triggerKey,
+        StoredTriggerState newState,
+        StoredTriggerState oldState,
+        DateTimeOffset? nextFireTimeUtc,
+        CancellationToken cancellationToken)
+    {
+        return nextFireTimeUtc.HasValue
+            ? Delegate.UpdateTriggerStateFromOtherStateWithNextFireTime(conn, triggerKey, newState, oldState, nextFireTimeUtc.Value, cancellationToken)
+            : Delegate.UpdateTriggerStateFromOtherState(conn, triggerKey, newState, oldState, cancellationToken);
     }
 
     /// <summary>

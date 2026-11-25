@@ -200,6 +200,97 @@ public sealed class ReplacedTriggerAcquisitionSqliteTest
     }
 
     /// <summary>
+    /// After a pause and resume let B fire T and acquire T2, A's reservation row for T is still there;
+    /// releasing A's outdated acquisition deletes only A's own row and leaves B's ACQUIRED row for T2
+    /// intact (#4349).
+    /// </summary>
+    [Test]
+    public async Task ReleasingAnOutdatedAcquisitionAfterPauseAndResumeLeavesTheOtherNodesNewerAcquisition()
+    {
+        IOperableTrigger heldByA = await ReserveOne(storeA);
+
+        await schedulerB.PauseTrigger(triggerKey);
+        await schedulerB.ResumeTrigger(triggerKey);
+        TriggerFiredBundle firedOnB = (await storeB.TriggersFired([await ReserveOne(storeB)])).Should().ContainSingle().Subject.TriggerFiredBundle!;
+        firedOnB.Should().NotBeNull("the premise: B fired the fire time A still holds");
+        await storeB.TriggeredJobComplete(firedOnB.Trigger, firedOnB.JobDetail, SchedulerInstruction.NoInstruction);
+        IOperableTrigger nextOnB = await ReserveOne(storeB);
+        nextOnB.NextFireTimeUtc.Should().Be(due.AddHours(1), "the premise: B holds the fire time after it");
+
+        (await storeA.TriggersFired([heldByA])).Should().ContainSingle().Which.TriggerFiredBundle.Should().BeNull();
+        await storeA.ReleaseAcquiredTrigger(heldByA);
+
+        (await StateOf()).Should().Be("ACQUIRED",
+            "the row is B's acquisition for T2, and A's release for T must not move it back to WAITING");
+        (await NextFireTimeStored()).Should().Be(due.AddHours(1));
+        (await FiredRows()).Should().Equal([("node-b", "ACQUIRED")],
+            "A's own reservation row is deleted while B's acquisition survives");
+
+        TriggerFiredBundle nextFiredOnB = (await storeB.TriggersFired([nextOnB])).Should().ContainSingle().Subject.TriggerFiredBundle!;
+        nextFiredOnB.Should().NotBeNull("B's acquisition for T2 survives A's release");
+        (await NextFireTimeStored()).Should().Be(due.AddHours(2));
+    }
+
+    /// <summary>
+    /// The same outdated-release race through a BLOCKED round-trip on a job that disallows concurrent
+    /// execution: a sibling trigger's firing moves A's acquired trigger to BLOCKED and its completion
+    /// returns it to WAITING, letting B fire T and acquire T2 while A's reservation row remains (#4349).
+    /// </summary>
+    [Test]
+    public async Task ReleasingAnOutdatedAcquisitionAfterBlockedRoundTripLeavesTheOtherNodesNewerAcquisition()
+    {
+        JobKey serialJobKey = new("serial-job", Group);
+        TriggerKey serialTriggerKey = new("serial-trigger", Group);
+        TriggerKey siblingTriggerKey = new("serial-sibling", Group);
+
+        await schedulerA.AddJob(JobBuilder.Create<SerialNoOpJob>().WithIdentity(serialJobKey).StoreDurably().Build());
+        await schedulerA.ScheduleJob(TriggerBuilder.Create()
+            .WithIdentity(serialTriggerKey)
+            .ForJob(serialJobKey)
+            .StartAt(due)
+            .WithSimpleSchedule(x => x.WithInterval(TimeSpan.FromHours(1)).RepeatForever())
+            .Build());
+        await schedulerA.ScheduleJob(TriggerBuilder.Create()
+            .WithIdentity(siblingTriggerKey)
+            .ForJob(serialJobKey)
+            .StartAt(due.AddSeconds(1))
+            .WithSimpleSchedule(x => x.WithRepeatCount(0))
+            .Build());
+
+        // Clear the default fixture trigger so only the serial job's triggers are acquired.
+        await schedulerA.UnscheduleJob(triggerKey);
+
+        IOperableTrigger heldByA = await ReserveOne(storeA);
+        heldByA.Key.Should().Be(serialTriggerKey);
+
+        // B fires the sibling, which moves serialTriggerKey ACQUIRED -> BLOCKED, then completes it
+        // (BLOCKED -> WAITING), letting B fire T and acquire T2 while A's reservation row for T remains.
+        IOperableTrigger siblingOnB = await ReserveOne(storeB);
+        siblingOnB.Key.Should().Be(siblingTriggerKey);
+        TriggerFiredBundle siblingFired = (await storeB.TriggersFired([siblingOnB])).Should().ContainSingle().Subject.TriggerFiredBundle!;
+        siblingFired.Should().NotBeNull();
+        await storeB.TriggeredJobComplete(siblingFired.Trigger, siblingFired.JobDetail, SchedulerInstruction.NoInstruction);
+
+        TriggerFiredBundle firedOnB = (await storeB.TriggersFired([await ReserveOne(storeB)])).Should().ContainSingle().Subject.TriggerFiredBundle!;
+        firedOnB.Should().NotBeNull("the premise: B fired the fire time A still holds");
+        await storeB.TriggeredJobComplete(firedOnB.Trigger, firedOnB.JobDetail, SchedulerInstruction.NoInstruction);
+        IOperableTrigger nextOnB = await ReserveOne(storeB);
+        nextOnB.NextFireTimeUtc.Should().Be(due.AddHours(1), "the premise: B holds the fire time after it");
+
+        await storeA.ReleaseAcquiredTrigger(heldByA);
+
+        (await StateOf(serialTriggerKey)).Should().Be("ACQUIRED",
+            "the row is B's acquisition for T2, and A's release for T must not move it back to WAITING");
+        (await NextFireTimeStored(serialTriggerKey)).Should().Be(due.AddHours(1));
+        (await FiredRows()).Should().Equal([("node-b", "ACQUIRED")],
+            "A's own reservation row is deleted while B's acquisition survives");
+
+        TriggerFiredBundle nextFiredOnB = (await storeB.TriggersFired([nextOnB])).Should().ContainSingle().Subject.TriggerFiredBundle!;
+        nextFiredOnB.Should().NotBeNull("B's acquisition for T2 survives A's release");
+        (await NextFireTimeStored(serialTriggerKey)).Should().Be(due.AddHours(2));
+    }
+
+    /// <summary>
     /// What a replace cancels is a reservation, not an execution: the fired-trigger row of a firing still
     /// running stays, for its completion or for recovery to settle (#3759).
     /// </summary>
@@ -265,28 +356,28 @@ public sealed class ReplacedTriggerAcquisitionSqliteTest
         return TimeSpan.FromMilliseconds(await ReadLong("SELECT REPEAT_INTERVAL FROM QRTZ_SIMPLE_TRIGGERS WHERE TRIGGER_NAME = @name"));
     }
 
-    private async Task<DateTimeOffset> NextFireTimeStored()
+    private async Task<DateTimeOffset> NextFireTimeStored(TriggerKey? key = null)
     {
-        return new DateTimeOffset(await ReadLong("SELECT NEXT_FIRE_TIME FROM QRTZ_TRIGGERS WHERE TRIGGER_NAME = @name"), TimeSpan.Zero);
+        return new DateTimeOffset(await ReadLong("SELECT NEXT_FIRE_TIME FROM QRTZ_TRIGGERS WHERE TRIGGER_NAME = @name", key), TimeSpan.Zero);
     }
 
-    private async Task<string> StateOf()
+    private async Task<string> StateOf(TriggerKey? key = null)
     {
         await using SqliteConnection connection = new(database.ConnectionString);
         await connection.OpenAsync();
         await using SqliteCommand command = connection.CreateCommand();
         command.CommandText = "SELECT TRIGGER_STATE FROM QRTZ_TRIGGERS WHERE TRIGGER_NAME = @name";
-        command.Parameters.AddWithValue("@name", triggerKey.Name);
+        command.Parameters.AddWithValue("@name", (key ?? triggerKey).Name);
         return (string) (await command.ExecuteScalarAsync())!;
     }
 
-    private async Task<long> ReadLong(string sql)
+    private async Task<long> ReadLong(string sql, TriggerKey? key = null)
     {
         await using SqliteConnection connection = new(database.ConnectionString);
         await connection.OpenAsync();
         await using SqliteCommand command = connection.CreateCommand();
         command.CommandText = sql;
-        command.Parameters.AddWithValue("@name", triggerKey.Name);
+        command.Parameters.AddWithValue("@name", (key ?? triggerKey).Name);
         return (long) (await command.ExecuteScalarAsync())!;
     }
 
@@ -345,6 +436,12 @@ public sealed class ReplacedTriggerAcquisitionSqliteTest
     }
 
     public sealed class NoOpJob : IJob
+    {
+        public ValueTask Execute(IJobExecutionContext context, CancellationToken cancellationToken = default) => default;
+    }
+
+    [DisallowConcurrentExecution]
+    public sealed class SerialNoOpJob : IJob
     {
         public ValueTask Execute(IJobExecutionContext context, CancellationToken cancellationToken = default) => default;
     }

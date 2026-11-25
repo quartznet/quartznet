@@ -486,7 +486,10 @@ internal abstract partial class AdoJobStoreBase
                     }
                     else
                     {
-                        await ReleaseAcquiredTrigger(conn, firedTrigger.TriggerKey, header.JobKey, firedTrigger.FireInstanceId, cancellationToken).ConfigureAwait(false);
+                        DateTimeOffset? nextFireTimeUtc = firedTrigger.ScheduleTimestamp > DateTimeOffset.MinValue
+                            ? firedTrigger.ScheduleTimestamp
+                            : null;
+                        await ReleaseAcquiredTrigger(conn, firedTrigger.TriggerKey, header.JobKey, firedTrigger.FireInstanceId, nextFireTimeUtc, cancellationToken).ConfigureAwait(false);
                     }
 
                     recoveredCount++;
