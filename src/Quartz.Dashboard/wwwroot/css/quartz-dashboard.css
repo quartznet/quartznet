@@ -1111,6 +1111,12 @@
     white-space: nowrap;
 }
 
+/* A dialog takes focus itself as it opens, and Tab cannot reach it, so it draws no ring; every control Tab reaches
+   inside it keeps one. */
+:where(.qz-dashboard) [role="dialog"][tabindex="-1"]:focus {
+    outline: none;
+}
+
 /* ==========================================================================
    13. BUTTONS
    ========================================================================== */
@@ -1335,6 +1341,12 @@
 .qz-triggers-table td.qz-col-execution-group {
     width: 128px;
     white-space: normal;
+}
+
+/* A badge cannot shrink below its longest word, so a group name wider than the column wraps inside it rather than
+   run into Details. */
+.qz-triggers-table td.qz-col-execution-group .qz-badge {
+    overflow-wrap: anywhere;
 }
 
 .qz-triggers-table th.qz-col-details,
