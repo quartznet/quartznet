@@ -31,15 +31,17 @@ repository. Scripts, screenshots and logs go in the scratchpad directory, or whe
    headless Edge:
    `msedge --headless=new --enable-logging=stderr --v=0 --window-size=1440,900 --screenshot=<file> <url>`.
    A `WebSocket connected to ws://…/_blazor` console line proves the circuit connected.
-3. **Capture each page on the checklist** at 1440×900 and at 390×844, in both themes if the page has a
+3. **Capture each page on the checklist** at 1440×900 and at 1024×768, in both themes if the page has a
    toggle.
 4. **Collect per page:** every `console.error` and `console.warn`, every response of 400 or above, every
    error region the page renders, and what the checklist says should be there but is not.
 5. **Judge the look and feel and the UX** of every page the change touches, as a careful operator would:
    - **Consistency:** the change uses the dashboard's existing components, spacing, typography, colours and
      icons (`quartz-dashboard.css`); nothing looks bolted on.
-   - **Layout:** alignment, wrapping, truncation and overflow at 1440, 1024, 768, 390 and 320 wide; no layout
-     shift as data arrives; tables scroll inside the content rather than off the page.
+   - **Layout:** alignment, wrapping, truncation and overflow at 1440, 1280, 1024 and 768 wide; no layout
+     shift as data arrives; tables scroll inside the content rather than off the page. The dashboard is an
+     operator's desktop tool: phone widths are not a target, so do not check them or report what only
+     shows there.
    - **Contrast and themes:** text and controls meet WCAG AA in both themes; state is not told by colour alone.
    - **States:** empty, loading, error and long-content states read well, not as blank space or raw exceptions.
    - **Keyboard and labels:** every control is reachable by Tab with a visible focus ring, and has a label
