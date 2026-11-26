@@ -1499,11 +1499,13 @@ internal abstract partial class AdoJobStoreBase
             }
         }
 
-        // The time this fire was scheduled for, captured before Triggered() moves the trigger on to the
-        // one after it. The fired-trigger row records it, and it used to be read straight off the
-        // trigger — which is why that row had to be written before Triggered() ran. Every write this
-        // method makes now goes out together at the end, so what the writes need is taken here instead
-        // of being expressed as an ordering constraint a batch could not honour.
+        // The time this attempt was due, captured before Triggered() moves the trigger on to the one
+        // after it: the trigger's next fire time as it stands. It used to be read straight off the
+        // trigger — which is why the fired-trigger row had to be written before Triggered() ran. Every
+        // write this method makes now goes out together at the end, so what the writes need is taken
+        // here instead of being expressed as an ordering constraint a batch could not honour. The row
+        // records the due time, and the occurrence in its own column, taken below once the fire has
+        // advanced the trigger (#4272).
         DateTimeOffset? scheduledFireTimeUtc = trigger.NextFireTimeUtc;
 
         // Auto-pin: when the preferred node is the "*" sentinel, claim the trigger by assigning this
@@ -1598,6 +1600,14 @@ internal abstract partial class AdoJobStoreBase
             state2 = await ApplyPausedGroupState(conn, trigger.Key.Group, trigger.JobKey.Group, state2, prefetch, cancellationToken).ConfigureAwait(false);
         }
 
+        // The occurrence this fire serves, for the fired-trigger row's own column: a retry's and a
+        // misfire catch-up's own due time is not it, and a recovery built from the row would serve the
+        // wrong time and start its attempts again (#4272). Taken after Triggered() or RetryFired()
+        // moved the trigger on: a misfire's original fire time, else the previous fire time the fire
+        // just set or left alone — the same value the bundle reports below. When neither says, the
+        // column stays NULL, and a recovery reads the due time instead.
+        DateTimeOffset? occurrence = scheduledFireTime ?? trigger.PreviousFireTimeUtc;
+
         TriggerFiredUpdate update = new()
         {
             Trigger = trigger,
@@ -1605,6 +1615,8 @@ internal abstract partial class AdoJobStoreBase
             NewState = state2,
             StoredTriggerType = identity.TriggerType,
             ScheduledFireTimeUtc = scheduledFireTimeUtc,
+            OccurrenceTimeUtc = occurrence,
+            RetryAttempt = trigger.RetryAttempt,
             ClearMisfireOriginalFireTime = scheduledFireTime.HasValue,
             BlockJobTriggers = job.ConcurrentExecutionDisallowed,
             // Inserted as EXECUTING by a round that wrote no reservation for it; a round that fires apart
@@ -1640,8 +1652,10 @@ internal abstract partial class AdoJobStoreBase
             Calendar = calendar,
             Recovering = trigger.Key.Group == SchedulerConstants.DefaultRecoveryGroup,
             FireTimeUtc = timeProvider.GetUtcNow(),
-            ScheduledFireTimeUtc = scheduledFireTime ?? trigger.PreviousFireTimeUtc,
-            // The time the fired-trigger row records, which a retry's and a catch-up's own due time is.
+            ScheduledFireTimeUtc = occurrence,
+            // The time this attempt was due: the trigger's next fire time before the fire moved it on.
+            // The fired-trigger row records it in SCHED_TIME and the occurrence in OCCURRENCE_TIME
+            // (#4272), so this is what a late start is measured against, not what a recovery serves.
             DueTimeUtc = scheduledFireTimeUtc,
             PreviousFireTimeUtc = prevFireTime,
             NextFireTimeUtc = trigger.NextFireTimeUtc,

@@ -10,6 +10,10 @@ converged: harmless, changed in place with no table rebuilt and no column narrow
   AddForeignKey FK_qrtz_triggers_qrtz_job_details_sched_name_job_name_job_group on quartz.qrtz_triggers (sched_name, job_name, job_group) -> quartz.qrtz_job_details (sched_name, job_name, job_group) on delete NoAction
   DropForeignKey FK_qrtz_triggers_qrtz_job_details_sched_name_job_name_job_group on quartz.qrtz_triggers
 
+added: columns AppAny 0.6.3 never had, which the move adds
+  AddColumn quartz.qrtz_fired_triggers.occurrence_time bigint NULL
+  AddColumn quartz.qrtz_fired_triggers.retry_attempt integer NULL
+
 left: harmless, a spelling of the same type, or a change that would narrow a column or rebuild a table
   AlterColumn quartz.qrtz_triggers.fixed_delay boolean NULL -> bool NULL
   AlterColumn quartz.qrtz_triggers.preferred_node_auto boolean NOT NULL DEFAULT False -> bool NOT NULL DEFAULT False

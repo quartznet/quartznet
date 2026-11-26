@@ -30,13 +30,14 @@ namespace Quartz.EntityFrameworkCore;
 /// </summary>
 /// <remarks>
 /// <para>
-/// Three kinds of difference, and the move treats each its own way. <b>Wrong</b>: what makes Quartz fail or read
+/// Four kinds of difference, and the move treats each its own way. <b>Wrong</b>: what makes Quartz fail or read
 /// slowly — the missing history indexes, and on SQL Server the <c>NOT NULL</c> string properties and the narrow
 /// instance name. Repaired. <b>Different and harmless</b>: a nullability, a column type or a delete rule the
 /// scripts declare otherwise. Converged where the database changes it in place, without rewriting or rebuilding
 /// the table, and never by narrowing a column; left otherwise. <b>Spelling only</b>: <c>bigint(19)</c> for
 /// <c>bigint</c> on MySQL, <c>text</c> for <c>NVARCHAR(n)</c> on SQLite. Left, because the database is the same
-/// either way and respelling would rebuild tables.
+/// either way and respelling would rebuild tables. <b>Missing</b>: columns AppAny 0.6.3 never had, which 4.9
+/// adds. Added, nullable, with the model's store type.
 /// </para>
 /// <para>
 /// So the move rebuilds no table. Two convergences would, and are left: on SQL Server <c>MISFIRE_INSTR</c> from
@@ -59,24 +60,10 @@ internal static class AppAnyMove
     /// <summary>The execution-history indexes AppAny 0.6.3 does not create, on every dialect.</summary>
     internal static readonly string[] MissingIndexes = ["EH_JOB_TIME", "EH_FIRE_INST", "EH_TRIG_TIME"];
 
-    /// <summary>
-    /// The tables AppAny 0.6.3 does not create, on every dialect: each is created as this package models it, with its
-    /// primary key, which is the only index any of them has.
-    /// </summary>
-    /// <remarks>
-    /// <para>
-    /// Named, not derived from the release that added each table. The move is a migration of the application's own,
-    /// so a fresh database that applies the application's migrations from the start runs it again, after AppAny's and
-    /// before the ones scaffolded since. A list derived from the model would then also create a table a later release
-    /// added, and that release's migration would create it a second time.
-    /// </para>
-    /// <para>
-    /// So the list holds only what Quartz added after AppAny 0.6.3 and before this package's first release:
-    /// <c>TRIGGER_STATUS</c>, 4.9's. A table a later release adds reaches a moved schema as it reaches any other,
-    /// through the migration the application scaffolds for that release, and never joins this list.
-    /// </para>
-    /// </remarks>
     internal static readonly string[] MissingTables = ["TRIGGER_STATUS"];
+
+    /// <summary>The columns AppAny 0.6.3 never had, on QRTZ_FIRED_TRIGGERS, which the move adds.</summary>
+    internal static readonly string[] MissingColumns = ["OCCURRENCE_TIME", "RETRY_ATTEMPT"];
 
     /// <summary>A column AppAny declares otherwise, as AppAny declares it.</summary>
     internal sealed record AppAnyColumn(string Table, string Column, string StoreType, QuartzColumnKind Kind, bool Nullable);
@@ -176,6 +163,27 @@ internal static class AppAnyMove
                     descending: index.Descending);
             }
         }
+
+        // AppAny 0.6.3 never had these columns, and 4.9 adds them. They are named here rather than
+        // derived from AddedBy: the move runs again whenever a fresh database applies an application's
+        // migrations from the start, and a derived list would also add a column a later release brings,
+        // which that release's own migration then adds a second time.
+        foreach (QuartzColumnDefinition column in dialect.Table("FIRED_TRIGGERS").Columns.Where(c => MissingColumns.Contains(c.Name)))
+        {
+            AddColumn(migrationBuilder, naming, column);
+        }
+    }
+
+    private static void AddColumn(MigrationBuilder migrationBuilder, QuartzTableNaming naming, QuartzColumnDefinition column)
+    {
+        string name = naming.Column(column.Name);
+        string table = naming.Table("FIRED_TRIGGERS");
+        _ = column.Kind switch
+        {
+            QuartzColumnKind.Int64 => migrationBuilder.AddColumn<long>(name, table, column.StoreType, schema: naming.Schema, nullable: true),
+            QuartzColumnKind.Int32 => migrationBuilder.AddColumn<int>(name, table, column.StoreType, schema: naming.Schema, nullable: true),
+            _ => throw new InvalidOperationException($"FIRED_TRIGGERS.{column.Name} is a {column.Kind} column, which the move has no add for"),
+        };
     }
 
     private static void AlterColumn(MigrationBuilder migrationBuilder, QuartzTableNaming naming, AppAnyColumn appAny, QuartzColumnDefinition ours)

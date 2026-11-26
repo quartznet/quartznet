@@ -28,8 +28,8 @@ namespace Quartz;
 /// <remarks>
 /// <para>
 /// <see cref="OccurrenceUtc" /> and <see cref="Origin" /> together name the occurrence, and stay the same on
-/// every retry of it, on a misfire catch-up of it and on a recovery of it, except a recovery of a retry or a
-/// catch-up (see <see cref="JobExecutionContextOccurrenceExtensions.GetOccurrence" />). That is what a consumer
+/// every retry of it, on a misfire catch-up of it and on a recovery of it, for firings a 4.9 node recorded
+/// (see <see cref="JobExecutionContextOccurrenceExtensions.GetOccurrence" />). That is what a consumer
 /// that deduplicates per occurrence derives its key from. Quartz formats no key: the format is the consumer's.
 /// </para>
 /// <para>

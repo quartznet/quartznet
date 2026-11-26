@@ -75,6 +75,20 @@ public sealed record FiredTriggerRecord
     public DateTimeOffset ScheduleTimestamp { get; init; }
 
     /// <summary>
+    /// The occurrence the firing serves, for a row a 4.9 node wrote: a misfire's original fire time,
+    /// else the previous fire time the fire set or left alone. A row a 4.8 node wrote has none, and
+    /// reads as <see langword="null" />; a recovery serves <see cref="ScheduleTimestamp" /> then, the
+    /// time the attempt was due (#4272).
+    /// </summary>
+    public DateTimeOffset? OccurrenceTimestamp { get; init; }
+
+    /// <summary>
+    /// Which attempt at the occurrence the firing was, for a row a 4.9 node wrote. A row a 4.8 node
+    /// wrote has none, and reads as <c>0</c> (#4272).
+    /// </summary>
+    public int RetryAttempt { get; init; }
+
+    /// <summary>
     /// The job the trigger fires, or <see langword="null" /> for a row still in
     /// <see cref="StoredTriggerState.Acquired" />: acquisition records the trigger before the job has
     /// been loaded, so the job columns are only filled in once the firing starts.

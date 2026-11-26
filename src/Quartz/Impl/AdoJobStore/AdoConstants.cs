@@ -184,6 +184,13 @@ public static class AdoConstants
     internal const string Migration49TriggerStatus = "4.9/add_trigger_status_{0}.sql";
 
     /// <summary>
+    /// The migration that adds the occurrence a firing serves and which attempt at it this is to
+    /// <see cref="TableFiredTriggers" />, which a database created by 4.8 or earlier needs: a 4.9 node
+    /// writes both columns when a firing starts and reads them when it recovers one (#4272).
+    /// </summary>
+    internal const string Migration49FiredTriggerOccurrence = "4.9/add_fired_trigger_occurrence_{0}.sql";
+
+    /// <summary>
     /// The columns only a feature that is off by default reads or writes, on a table only that feature
     /// reads — probed, like <see cref="OptionalTableNames" />, only when the feature is on.
     /// </summary>
@@ -284,7 +291,9 @@ public static class AdoConstants
         (TableSchedulerState, ColumnQuartzVersion, Migration46SchedulerVersion),
         (TableFiredTriggers, ColumnInterruptRequestedTime, Migration46FiredTriggerInterrupt),
         (TableTriggers, ColumnMisfireThreshold, Migration46TriggerMisfireThreshold),
-        (TableTriggers, ColumnFixedDelay, Migration47TriggerFixedDelay)
+        (TableTriggers, ColumnFixedDelay, Migration47TriggerFixedDelay),
+        (TableFiredTriggers, ColumnOccurrenceTime, Migration49FiredTriggerOccurrence),
+        (TableFiredTriggers, ColumnRetryAttempt, Migration49FiredTriggerOccurrence)
     ];
 
     // Table names
@@ -621,6 +630,13 @@ public static class AdoConstants
     /// The <c>SCHED_TIME</c> column of <see cref="TableFiredTriggers" />.
     /// </summary>
     public const string ColumnScheduledTime = "SCHED_TIME";
+
+    /// <summary>
+    /// The <c>OCCURRENCE_TIME</c> column of <see cref="TableFiredTriggers" />: the occurrence the
+    /// firing serves, in ticks like <see cref="ColumnScheduledTime" />, and <c>NULL</c> on a row a
+    /// node older than 4.9 wrote, which reads as the time the attempt was due (#4272).
+    /// </summary>
+    public const string ColumnOccurrenceTime = "OCCURRENCE_TIME";
 
     /// <summary>
     /// The <c>ENTRY_ID</c> column of <see cref="TableFiredTriggers" />.

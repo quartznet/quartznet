@@ -50,9 +50,9 @@ editing.
 | 4.0 / 4.1 | 4.3+ | [4.2](#version-4-2), then [4.3](#version-4-3) — both **mandatory** |
 | 4.2 | 4.3+ | [4.3](#version-4-3) — **mandatory**; then [4.6](#version-4-6) for 4.6+ |
 | 4.3 | 4.4 / 4.5 | Nothing mandatory. [4.4](#version-4-4) only with `UseExecutionHistory()` |
-| 4.3 / 4.4 / 4.5 | 4.6+ | [4.6](#version-4-6): the version, interrupt and misfire threshold columns **mandatory**, the history indexes optional; [4.4](#version-4-4) only with `UseExecutionHistory()`; then [4.7](#version-4-7) for 4.7+ |
-| 4.6 | 4.7+ | [4.7](#version-4-7): the fixed-delay column, **mandatory** |
-| 4.7 / 4.8 | 4.9+ | Nothing mandatory. [4.9](#version-4-9) only with `UseExecutionHistory()` |
+| 4.3 / 4.4 / 4.5 | 4.6+ | [4.6](#version-4-6): the version, interrupt and misfire threshold columns **mandatory**, the history indexes optional; [4.4](#version-4-4) only with `UseExecutionHistory()`; then [4.7](#version-4-7) for 4.7+; then [4.9](#version-4-9) for 4.9+ |
+| 4.6 | 4.7+ | [4.7](#version-4-7): the fixed-delay column, **mandatory**; then [4.9](#version-4-9) for 4.9+ |
+| 4.7 / 4.8 | 4.9+ | [4.9](#version-4-9): the occurrence columns, **mandatory**; the trigger status table only with `UseExecutionHistory()` |
 
 ## Upgrading to 4.x is mandatory
 
@@ -807,16 +807,30 @@ completion.
 
 ## Version 4.9
 
-One optional script: only a store configured with `UseExecutionHistory()` needs it
-([#4243](https://github.com/quartznet/quartznet/issues/4243)). 4.8 changed no schema.
+Two scripts: one mandatory ([#4272](https://github.com/quartznet/quartznet/issues/4272)) and one optional, only
+for a store configured with `UseExecutionHistory()` ([#4243](https://github.com/quartznet/quartznet/issues/4243)).
+4.8 changed no schema.
 
 | Script | Status | Adds |
 |---|---|---|
+| [`migrations/4.9/add_fired_trigger_occurrence_<db>.sql`](https://github.com/quartznet/quartznet/tree/main/database/migrations/4.9) | **Mandatory** for 4.9 and later | `OCCURRENCE_TIME` and `RETRY_ATTEMPT` on `QRTZ_FIRED_TRIGGERS` |
 | [`migrations/4.9/add_trigger_status_<db>.sql`](https://github.com/quartznet/quartznet/tree/main/database/migrations/4.9) | Optional: only with `UseExecutionHistory()` | The `QRTZ_TRIGGER_STATUS` table |
 
-- A store configured with `UseExecutionHistory()` refuses to start without it; the startup check names the
-  table and the script. No other store probes for it.
-- It creates a table and alters nothing, so it runs in any order beside 4.9's other scripts.
+### The occurrence columns
+
+`OCCURRENCE_TIME` is the occurrence the firing serves, in ticks like `SCHED_TIME`: a misfire's
+original fire time, else the previous fire time the fire set or left alone. `RETRY_ATTEMPT` is which
+attempt at that occurrence the firing is. A firing writes both when it starts; a reservation leaves
+both `NULL`. `SCHED_TIME` keeps meaning when the attempt was due.
+
+| Value | Meaning |
+|---|---|
+| `NULL` | A row a node older than 4.9 wrote: the recovery serves the time the attempt was due with attempt `0`, as it always has |
+| set | The occurrence and the attempt the firing was: a recovery of a retry or a misfire catch-up serves the occurrence and keeps the attempt |
+
+- Nullable, no default, no index. The columns are read with the rest of the row, which recovery
+  already reads, and never searched on.
+- A 4.9 node refuses to start without them; the startup check names the column and the script.
 
 ### The trigger status table
 
@@ -829,14 +843,22 @@ One optional script: only a store configured with `UseExecutionHistory()` needs 
 - The primary key is its only index.
 - No foreign key: a 4.8 node deleting a trigger must not trip on a row it has never heard of. The history's
   sweep deletes the row of a trigger that is gone once its last run is older than the longest retention.
+- A store configured with `UseExecutionHistory()` refuses to start without it; the startup check names the
+  table and the script. No other store probes for it.
+- It creates a table and alters nothing, so it runs in any order beside 4.9's other scripts.
 
 ### Rolling 4.8 → 4.9
 
-Run the script at any time. A 4.8 node never touches the table, so the trigger rollup counts only the firings
+Run the occurrence script while 4.8 nodes are still up: the columns are nullable with no default, and a 4.8 node never
+names them. A firing a 4.8 node runs recovers at the time its attempt was due with attempt `0`, and leaves
+the columns as it found them when it updates the row. Roll every node, then rely on a recovery serving the
+occurrence only for firings a 4.9 node recorded.
+
+Run the trigger status script at any time. A 4.8 node never touches the table, so the trigger rollup counts only the firings
 4.9 nodes record until every node is 4.9: a trigger's last run can be older than its previous fire time, and a
 4.8 node's success does not clear its failing count.
 
-A fresh install from `database/tables/`, and `ProvisionSchema()`, create it.
+A fresh install from `database/tables/`, and `ProvisionSchema()`, create both the columns and the table.
 
 ## See also
 

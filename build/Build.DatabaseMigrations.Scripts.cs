@@ -490,6 +490,9 @@ partial class Build
 
             // --- 4.9: each trigger's rollup, beside each job's, which only UseExecutionHistory() needs ---
             files.Add(($"4.9/add_trigger_status_{d}.sql", Build49TriggerStatusScript(d)));
+
+            // --- 4.9: the occurrence and the attempt a firing serves, on its own row ---
+            files.Add(($"4.9/add_fired_trigger_occurrence_{d}.sql", Build49FiredTriggerOccurrenceScript(d)));
         }
 
         return files;
@@ -546,6 +549,49 @@ partial class Build
 
         return header
             + "\n\n" + CreateTable(dialect, TableTriggerStatus, HistoryTableBody(dialect, TableTriggerStatus));
+    }
+
+    /// <summary>
+    /// The occurrence a firing serves and which attempt at it this is, on the firing's own row, so a
+    /// recovery of a retry or a misfire catch-up serves the occurrence and keeps the attempt, for
+    /// firings a 4.9 node recorded (#4272).
+    /// </summary>
+    static string Build49FiredTriggerOccurrenceScript(string dialect)
+    {
+        string header = Header(dialect, "add the fired trigger occurrence columns", "4.9.0", "#4272",
+            [
+                "4.9  REQUIRED. A 4.9 node writes these columns when a firing starts, and reads them",
+                "     when it recovers one, so it refuses to start against a database without them.",
+                "",
+                "     Safe to run while 4.8 nodes are still up: the columns are nullable with no default,",
+                "     so every existing row is already valid, and a 4.8 node never names them. A firing",
+                "     a 4.8 node runs recovers at the time its attempt was due with attempt 0, as it",
+                "     always has.",
+                "",
+                "3.x  Not applicable. Upgrading from 3.x means running",
+                $"     ../4.0/schema_30_to_40_upgrade_{dialect}.sql and every later migration first;",
+                "     this file is what 4.9 adds on top of them.",
+            ],
+            [
+                "OCCURRENCE_TIME is the occurrence the firing serves, in ticks like SCHED_TIME: a",
+                "misfire's original fire time, else the previous fire time the fire set or left alone.",
+                "RETRY_ATTEMPT is which attempt at that occurrence the firing is. A firing writes",
+                "both when it starts; a reservation leaves both NULL. SCHED_TIME keeps meaning when",
+                "the attempt was due.",
+                "",
+                "A recovery starts its trigger at OCCURRENCE_TIME, or SCHED_TIME when it is NULL, and",
+                "restores RETRY_ATTEMPT, or 0 when it is NULL, because a 4.8 node writes neither.",
+                "",
+                "No index is added. The columns are read with the rest of the row, which recovery",
+                "already reads, and never searched on.",
+                "",
+                "BOTH COLUMNS MUST BE ADDED TOGETHER.",
+            ],
+            sqliteNotIdempotent: true);
+
+        return header
+            + "\n\n" + AddColumn(dialect, TableFired, "OCCURRENCE_TIME", ModelColumn(dialect, TableFired, "OCCURRENCE_TIME"))
+            + "\n\n" + AddColumn(dialect, TableFired, "RETRY_ATTEMPT", ModelColumn(dialect, TableFired, "RETRY_ATTEMPT"));
     }
 
     /// <summary>

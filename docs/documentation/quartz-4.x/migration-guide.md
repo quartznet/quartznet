@@ -18,7 +18,7 @@ If you are a new user starting with the latest version, you don't need to follow
 | An application's code from 3.x | [Package Changes](#package-changes): the first error a mixed 3.x/4.x project shows is a package problem. Then [The road from 3.x, phase by phase](#the-road-from-3-x-phase-by-phase) |
 | An F# application | [Upgrading an F# project](#upgrading-an-f-project) first. F# reports the same upgrade as more errors than it has causes |
 | From a 4.0 alpha or beta | [Appendix: if you ran a 4.0 pre-release](#appendix-if-you-ran-a-4-0-pre-release) |
-| From 4.8 | [Upgrading from 4.8 to 4.9](#upgrading-from-4-8-to-4-9). Its database migration is needed only with the database execution history |
+| From 4.8 | [Upgrading from 4.8 to 4.9](#upgrading-from-4-8-to-4-9). It has a database migration: one script is required, the other only with the database execution history |
 | From 4.7 | [Upgrading from 4.7 to 4.8](#upgrading-from-4-7-to-4-8). Then 4.8 to 4.9 |
 | From 4.6 | [Upgrading from 4.6 to 4.7](#upgrading-from-4-6-to-4-7). It has a database migration. Then 4.7 to 4.8 |
 | From 4.5 | [Upgrading from 4.5 to 4.6](#upgrading-from-4-5-to-4-6). It has a database migration. Then 4.6 to 4.7 |
@@ -33,7 +33,19 @@ The compiler finds most of the 3.x → 4.0 work.
 
 ## Upgrading from 4.8 to 4.9
 
-An application on 4.8 compiles on 4.9 unchanged.
+An application on 4.8 compiles on 4.9 unchanged. The upgrade has two database migrations, in
+[`database/migrations/4.9/`](https://github.com/quartznet/quartznet/tree/main/database/migrations/4.9):
+
+| Migration | Adds, nullable |
+|---|---|
+| `add_fired_trigger_occurrence_<db>.sql` | `OCCURRENCE_TIME` and `RETRY_ATTEMPT` on `QRTZ_FIRED_TRIGGERS` — required |
+| `add_trigger_status_<db>.sql` | The `QRTZ_TRIGGER_STATUS` table — only with `UseExecutionHistory()` |
+
+A 4.9 node refuses to start without the required script; a 4.8 node never names it. Run it while the 4.8 nodes are up, then
+roll the nodes. A firing a 4.8 node runs recovers at the time its attempt was due with attempt `0`, as it
+always has; only firings a 4.9 node records recover at the occurrence with the attempt kept. The trigger
+status script runs at any time; a 4.8 node never touches the table. See
+[Version 4.9](../database/schema-changes.md#version-4-9).
 
 | Added | What it is |
 |---|---|
@@ -83,6 +95,11 @@ An application on 4.8 compiles on 4.9 unchanged.
 | `GET …/triggers/upcoming-fires` | HTTP API route `QueryUpcomingFires`, View: `?from=&to=&take=&groupContains=`. Agent operation `QueryUpcomingFires`, allowed by default. Through a host older than 4.9, `HttpScheduler` computes it from the triggers and calendars the host answers with. See [Upcoming fires between two times](packages/http-api.md#upcoming-fires-between-two-times) |
 | Dashboard: the Agenda, `/quartz/agenda` | Every fire in a window, by hour, with *Pause selected* and *Resume selected*. See [Agenda](packages/dashboard.md#agenda) |
 | `QuartzInstrumentation.Instruments.TriggerDue`, `TriggerDueAge` | `quartz.trigger.due`, an `ObservableGauge<long>` in `{trigger}`, and `quartz.trigger.due.age`, an `ObservableGauge<double>` in `s`: the waiting triggers whose fire time has passed, per execution group, and how long the earliest has been due. From the ADO.NET store only; aggregate across nodes with `max`. The thirteenth and fourteenth instruments. See [The due backlog](packages/opentelemetry-integration.md#the-due-backlog) |
+| `FiredTriggerRecord.OccurrenceTimestamp` | `DateTimeOffset?`, `init`: the occurrence the firing serves. `null` for a row a 4.8 node wrote; a recovery then serves the time the attempt was due |
+| `FiredTriggerRecord.RetryAttempt` | `int`, `init`: which attempt at the occurrence the firing was. A row a 4.8 node wrote reads as `0` |
+| `TriggerFiredUpdate.OccurrenceTimeUtc` | `DateTimeOffset?`, `init`: the occurrence the fire serves, for the fired-trigger row. `null` when neither says, which a recovery reads as the time the attempt was due |
+| `TriggerFiredUpdate.RetryAttempt` | `int`, `init`: which attempt at the occurrence the fire is, for the fired-trigger row |
+| `QRTZ_FIRED_TRIGGERS.OCCURRENCE_TIME`, `RETRY_ATTEMPT`, `AdoConstants.ColumnOccurrenceTime` | Nullable columns, from the required `4.9/add_fired_trigger_occurrence_<db>.sql`; `NULL` is the time the attempt was due with attempt `0`. See [Version 4.9](../database/schema-changes.md#version-4-9) |
 
 | Changed | What to check |
 |---|---|
@@ -102,6 +119,7 @@ An application on 4.8 compiles on 4.9 unchanged.
 | The dashboard's reschedule of a cron trigger (#4412) | Resets the trigger's previous fire time and a pending retry, and stores the edited expression's first fire after now. Before, the clone carried both over. A trigger paused on its own is paused again, with its reason and who asked, dated now; before, it came back unpaused. A trigger its group keeps paused stays so. The four other kinds, editable from 4.9, reset their count of fires too. See [Rescheduling a trigger](packages/dashboard.md#rescheduling-a-trigger) |
 | A calendar saved from the dashboard (#4413), in the Action Log and log events `9100` and `9101` | `CreateCalendar` for a new name and `ReplaceCalendar` for a stored one, with the calendar's type and, for a replace, `updateTriggers=true` or `false` in the message. A save with *Replace if existing* ticked was `UpsertCalendar`. An alert matching `UpsertCalendar` matches neither. See [Calendars](packages/dashboard.md#calendars) |
 | A policy or an agent's `IsOperationAllowed` that refuses `GetExecution` to keep captured logs from a caller | Refuse `GetFireInstanceLog` as well: from 4.9 it reads the same lines while the firing runs. A predicate that allows operations by name, rather than refusing them by name, already refuses it |
+| A recovery of a retry or a misfire catch-up | Serves the occurrence and keeps `RetryAttempt`, for firings a 4.9 node recorded. A row a 4.8 node wrote recovers at the time the attempt was due with attempt `0`, as it always has |
 
 ## Upgrading from 4.7 to 4.8
 

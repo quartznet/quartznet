@@ -202,6 +202,8 @@ internal static partial class QuartzSchema
                 new("PROGRESS", QuartzColumnKind.Int32, "INTEGER", Nullable: true, AddedBy: "4.3"),
                 new("PROGRESS_MESSAGE", QuartzColumnKind.String, "VARCHAR(250)", Nullable: true, AddedBy: "4.3"),
                 new("INTERRUPT_REQUESTED_TIME", QuartzColumnKind.Int64, "BIGINT", Nullable: true, AddedBy: "4.6"),
+                new("OCCURRENCE_TIME", QuartzColumnKind.Int64, "BIGINT", Nullable: true, AddedBy: "4.9"),
+                new("RETRY_ATTEMPT", QuartzColumnKind.Int32, "INTEGER", Nullable: true, AddedBy: "4.9"),
             ],
             PrimaryKey: ["SCHED_NAME", "ENTRY_ID"],
             PrimaryKeyName: "PK_{1}FIRED_TRIGGERS",

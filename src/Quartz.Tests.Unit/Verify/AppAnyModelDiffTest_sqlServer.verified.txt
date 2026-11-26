@@ -16,6 +16,10 @@ converged: harmless, changed in place with no table rebuilt and no column narrow
   DropForeignKey FK_QRTZ_BLOB_TRIGGERS_QRTZ_TRIGGERS_SCHED_NAME_TRIGGER_NAME_TRIGGER_GROUP on quartz.QRTZ_BLOB_TRIGGERS
   DropForeignKey FK_QRTZ_TRIGGERS_QRTZ_JOB_DETAILS_SCHED_NAME_JOB_NAME_JOB_GROUP on quartz.QRTZ_TRIGGERS
 
+added: columns AppAny 0.6.3 never had, which the move adds
+  AddColumn quartz.QRTZ_FIRED_TRIGGERS.OCCURRENCE_TIME bigint NULL
+  AddColumn quartz.QRTZ_FIRED_TRIGGERS.RETRY_ATTEMPT int NULL
+
 left: harmless, a spelling of the same type, or a change that would narrow a column or rebuild a table
   AlterColumn quartz.QRTZ_CRON_TRIGGERS.TIME_ZONE_ID nvarchar(120) NULL -> nvarchar(80) NULL
   AlterColumn quartz.QRTZ_SIMPLE_TRIGGERS.REPEAT_COUNT bigint NOT NULL -> int NOT NULL

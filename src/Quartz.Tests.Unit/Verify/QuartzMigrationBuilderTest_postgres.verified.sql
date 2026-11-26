@@ -33,3 +33,7 @@ CREATE INDEX idx_qrtz_eh_job_time ON quartz.qrtz_execution_history (sched_name, 
 CREATE INDEX idx_qrtz_eh_fire_inst ON quartz.qrtz_execution_history (sched_name, fire_instance_id);
 
 CREATE INDEX idx_qrtz_eh_trig_time ON quartz.qrtz_execution_history (sched_name, trigger_group, trigger_name, fired_time);
+
+ALTER TABLE quartz.qrtz_fired_triggers ADD occurrence_time bigint;
+
+ALTER TABLE quartz.qrtz_fired_triggers ADD retry_attempt integer;

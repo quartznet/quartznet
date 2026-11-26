@@ -76,6 +76,25 @@ public sealed record TriggerFiredUpdate
     public required DateTimeOffset? ScheduledFireTimeUtc { get; init; }
 
     /// <summary>
+    /// The occurrence this fire serves, for the fired-trigger row: a misfire's original fire time,
+    /// else the previous fire time the fire just set or left alone — not the time the attempt was due,
+    /// which a retry's instant or a misfire instruction's move is (#4272). <see langword="null" />
+    /// when neither says, which a recovery reads as the time the attempt was due.
+    /// </summary>
+    /// <remarks>
+    /// Carried beside <see cref="ScheduledFireTimeUtc" /> rather than read off <see cref="Trigger" />,
+    /// because the occurrence is only known once the fire has advanced it.
+    /// </remarks>
+    public DateTimeOffset? OccurrenceTimeUtc { get; init; }
+
+    /// <summary>
+    /// Which attempt at the occurrence this fire is, for the fired-trigger row: the trigger's count as
+    /// the fire found it. A recovery restores it from the row rather than reading the trigger's row,
+    /// which misfire handling may have zeroed since (#4272).
+    /// </summary>
+    public int RetryAttempt { get; init; }
+
+    /// <summary>
     /// Whether the trigger's recorded original fire time has to be cleared, which it does when this
     /// fire is the recovery of a misfire and the recorded time has now been reported to the job.
     /// </summary>

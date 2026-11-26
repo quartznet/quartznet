@@ -9,6 +9,10 @@ repaired: AppAny's schema has it wrong, and the move changes it
 converged: harmless, changed in place with no table rebuilt and no column narrowed
   (none)
 
+added: columns AppAny 0.6.3 never had, which the move adds
+  AddColumn QRTZ_FIRED_TRIGGERS.OCCURRENCE_TIME BIGINT NULL
+  AddColumn QRTZ_FIRED_TRIGGERS.RETRY_ATTEMPT INTEGER NULL
+
 left: harmless, a spelling of the same type, or a change that would narrow a column or rebuild a table
   AddForeignKey FK_QRTZ_TRIGGERS_QRTZ_JOB_DETAILS_SCHED_NAME_JOB_NAME_JOB_GROUP on QRTZ_TRIGGERS (SCHED_NAME, JOB_NAME, JOB_GROUP) -> QRTZ_JOB_DETAILS (SCHED_NAME, JOB_NAME, JOB_GROUP) on delete NoAction
   AlterColumn QRTZ_BLOB_TRIGGERS.BLOB_DATA bytea NULL -> BLOB NULL

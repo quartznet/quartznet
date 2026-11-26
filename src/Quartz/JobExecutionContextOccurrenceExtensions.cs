@@ -59,12 +59,12 @@ public static class JobExecutionContextOccurrenceExtensions
     /// </description></item>
     /// </list>
     /// <para>
-    /// A recovery keeps the origin and occurrence of the firing it runs again: the recovery trigger carries
-    /// that firing's job data, and is scheduled for the time that firing was, so its
-    /// <see cref="IJobExecutionContext.ScheduledFireTimeUtc" /> is the original's. One gap: when the firing
-    /// recovered was itself a retry or a misfire catch-up, the job store recorded the time that attempt was
-    /// due rather than the occurrence, and the recovery serves that time, with
-    /// <see cref="FiringOccurrence.RetryAttempt" /> back at <c>0</c>.
+    /// A recovery keeps the origin, occurrence and attempt of the firing it runs again: the recovery
+    /// trigger carries that firing's job data, is scheduled for the time that firing was, and restores
+    /// the attempt the fired-trigger row records (#4272). For firings a 4.9 node recorded, the row
+    /// carries the occurrence and the attempt, so a recovery of a retry or a misfire catch-up serves
+    /// the occurrence too; a row an older node wrote recovers at the time the attempt was due with
+    /// attempt <c>0</c>.
     /// </para>
     /// <para>
     /// A firing with no scheduled fire time is taken to be due when it fired.

@@ -221,6 +221,10 @@ public class StdAdoDelegateRoundBatchTest
     /// is known and said: the store rolls back that fire alone rather than rerunning the round a trigger at
     /// a time to find it.
     /// </summary>
+    /// <remarks>
+    /// Two fires: the size the batch limit was measured at. Three of these stub fires no longer fit one
+    /// batch, since the fired row gained <c>OCCURRENCE_TIME</c> and <c>RETRY_ATTEMPT</c> (#4272).
+    /// </remarks>
     [Test]
     public async Task AFailedTypeTableWriteAfterTheBatchSaysWhoseFireItWas()
     {
@@ -228,7 +232,7 @@ public class StdAdoDelegateRoundBatchTest
             new PostgreSQLDelegate(),
             commandFailure: sql => sql.Contains("CRON_TRIGGERS", StringComparison.Ordinal) ? new InvalidOperationException("the old type's row cannot be deleted") : null);
         StubBatchingConnection connection = new();
-        List<TriggerFiredUpdate> updates = Updates(3);
+        List<TriggerFiredUpdate> updates = Updates(2);
 
         // Stored as a cron trigger and firing as a simple one: its type-table write cannot be described as a
         // statement, so it is issued on its own after the batch.
