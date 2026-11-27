@@ -109,9 +109,10 @@ internal static class StdAdoConstants
         Invariant($"DELETE FROM {TablePrefixSubst}{AdoConstants.TableTriggers} WHERE {AdoConstants.ColumnSchedulerName} = @{SqlParameters.SchedulerName} AND {AdoConstants.ColumnTriggerName} = @{SqlParameters.TriggerName} AND {AdoConstants.ColumnTriggerGroup} = @{SqlParameters.TriggerGroup}");
 
     /// <summary>
-    /// <see cref="SqlDeleteTrigger" /> for the row a completion read the header of, and no other: a row
-    /// replaced since the read — a reschedule under the lock the completion does not hold — carries the
-    /// replacement's discriminator and is left alone (#4066). Binds the key, then the discriminator.
+    /// <see cref="SqlDeleteTrigger" /> narrowed to the discriminator a read found (#4066): the base of
+    /// <see cref="SqlDeleteTriggerAsRead" />, which holds it to the read's fire time as well, since a
+    /// replacement of the same type carries the same discriminator (#4399). Binds the key, then the
+    /// discriminator.
     /// </summary>
     public static readonly string SqlDeleteTriggerOfType =
         SqlDeleteTrigger + Invariant($" AND {AdoConstants.ColumnTriggerType} = @{SqlParameters.TriggerType}");
@@ -1747,6 +1748,79 @@ internal static class StdAdoConstants
     /// </summary>
     internal static readonly string NextFireTimeStillNullPredicate =
         Invariant($" AND {AdoConstants.ColumnNextFireTime} IS NULL");
+
+    /// <summary>
+    /// A no-op write to a trigger's row, by key: it takes the row's lock, which is how every deletion of a
+    /// trigger starts, so that each path that writes a trigger's rows takes the trigger's row before its
+    /// type table's (#4399). The writers — a store, a replace, a fire, a misfire — write the row first
+    /// anyway.
+    /// </summary>
+    internal static readonly string SqlLockTriggerRow =
+        Invariant($"UPDATE {TablePrefixSubst}{AdoConstants.TableTriggers} SET {AdoConstants.ColumnTriggerState} = {AdoConstants.ColumnTriggerState} WHERE {AdoConstants.ColumnSchedulerName} = @{SqlParameters.SchedulerName} AND {AdoConstants.ColumnTriggerName} = @{SqlParameters.TriggerName} AND {AdoConstants.ColumnTriggerGroup} = @{SqlParameters.TriggerGroup}");
+
+    /// <summary>
+    /// <see cref="SqlLockTriggerRow" /> for the row a completion read the header of, and no other: the first
+    /// statement of the completion's deletion, which matches only while the row holds the discriminator and
+    /// the fire time the read found (#4399). Binds the key, the discriminator, then the fire time.
+    /// </summary>
+    internal static readonly FireTimeHeld SqlLockTriggerAsRead =
+        FireTimeHeld.Appended(SqlLockTriggerRow + Invariant($" AND {AdoConstants.ColumnTriggerType} = @{SqlParameters.TriggerType}"));
+
+    /// <summary>
+    /// <see cref="SqlDeleteTriggerOfType" /> held to the fire time the completion's read found (#4399).
+    /// Binds the key, the discriminator, then the fire time.
+    /// </summary>
+    internal static readonly FireTimeHeld SqlDeleteTriggerAsRead = FireTimeHeld.Appended(SqlDeleteTriggerOfType);
+
+    /// <summary><see cref="SqlDeleteSimpleTrigger" /> while the trigger's row is the one read (#4399).</summary>
+    internal static readonly FireTimeHeld SqlDeleteSimpleTriggerAsRead = TypeRowAsRead(SqlDeleteSimpleTrigger, AdoConstants.TableSimpleTriggers);
+
+    /// <summary><see cref="SqlDeleteCronTrigger" /> while the trigger's row is the one read (#4399).</summary>
+    internal static readonly FireTimeHeld SqlDeleteCronTriggerAsRead = TypeRowAsRead(SqlDeleteCronTrigger, AdoConstants.TableCronTriggers);
+
+    /// <summary>
+    /// The <c>SIMPROP_TRIGGERS</c> row's deletion while the trigger's row is the one read (#4399).
+    /// </summary>
+    internal static readonly FireTimeHeld SqlDeleteSimplePropsTriggerAsRead =
+        TypeRowAsRead(SimplePropertiesTriggerPersistenceDelegateBase.DeleteSimplePropsTrigger, AdoConstants.TableSimplePropertiesTriggers);
+
+    /// <summary><see cref="SqlDeleteBlobTrigger" /> while the trigger's row is the one read (#4399).</summary>
+    internal static readonly FireTimeHeld SqlDeleteBlobTriggerAsRead = TypeRowAsRead(SqlDeleteBlobTrigger, AdoConstants.TableBlobTriggers);
+
+    /// <summary>
+    /// A type table's deletion by key, held to its trigger's row as the completion read it: the
+    /// discriminator and the fire time, checked on the row the type row belongs to, which the subquery names
+    /// by the outer row's columns rather than by parameters, so that a provider that binds by position binds
+    /// the key once (as <see cref="SqlDeleteFiredTriggersOfDeletedTrigger" /> does). Binds the key, the
+    /// discriminator, then the fire time.
+    /// </summary>
+    private static FireTimeHeld TypeRowAsRead(string deleteByKey, string typeTable)
+    {
+        string table = TablePrefixSubst + typeTable;
+        string rowAsRead = deleteByKey
+                           + Invariant($" AND EXISTS (SELECT 1 FROM {TablePrefixSubst}{AdoConstants.TableTriggers} t WHERE t.{AdoConstants.ColumnSchedulerName} = {table}.{AdoConstants.ColumnSchedulerName} AND t.{AdoConstants.ColumnTriggerName} = {table}.{AdoConstants.ColumnTriggerName} AND t.{AdoConstants.ColumnTriggerGroup} = {table}.{AdoConstants.ColumnTriggerGroup}")
+                           + Invariant($" AND t.{AdoConstants.ColumnTriggerType} = @{SqlParameters.TriggerType}");
+        return new FireTimeHeld(
+            rowAsRead + Invariant($" AND t.{AdoConstants.ColumnNextFireTime} IS NULL)"),
+            rowAsRead + Invariant($" AND t.{AdoConstants.ColumnNextFireTime} = @{SqlParameters.ExpectedNextFireTime})"));
+    }
+
+    /// <summary>
+    /// A statement held to the fire time a read found, in its two forms: <see cref="IfStillNull" /> for a row
+    /// read with none, and <see cref="IfUnchanged" /> for a row read with one, which binds the fire time last
+    /// (<see cref="NextFireTimeStillNullPredicate" />, <see cref="NextFireTimeUnchangedPredicate" />).
+    /// </summary>
+    /// <param name="IfStillNull">The statement for a row read with no fire time.</param>
+    /// <param name="IfUnchanged">The statement for a row read with one.</param>
+    [System.Runtime.InteropServices.StructLayout(System.Runtime.InteropServices.LayoutKind.Auto)]
+    internal readonly record struct FireTimeHeld(string IfStillNull, string IfUnchanged)
+    {
+        /// <summary>The form for a row read with <paramref name="nextFireTimeUtc" />.</summary>
+        public string For(DateTimeOffset? nextFireTimeUtc) => nextFireTimeUtc.HasValue ? IfUnchanged : IfStillNull;
+
+        /// <summary>A statement that ends with its <c>WHERE</c>, held by the predicate appended to it.</summary>
+        public static FireTimeHeld Appended(string sql) => new(sql + NextFireTimeStillNullPredicate, sql + NextFireTimeUnchangedPredicate);
+    }
 
     /// <summary>
     /// <see cref="SqlUpdateTriggerMisfire" /> held to the fire time the misfire was decided from

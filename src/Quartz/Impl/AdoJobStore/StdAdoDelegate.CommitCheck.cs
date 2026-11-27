@@ -51,9 +51,7 @@ public partial class StdAdoDelegate
     /// waiting. The check runs in the store's retry loop, which absorbs that.
     /// </para>
     /// </remarks>
-    internal static readonly string SqlSettleTriggerRow =
-        $"UPDATE {StdAdoConstants.TablePrefixSubst}{AdoConstants.TableTriggers} SET {AdoConstants.ColumnTriggerState} = {AdoConstants.ColumnTriggerState}"
-        + $" WHERE {AdoConstants.ColumnSchedulerName} = @{SqlParameters.SchedulerName} AND {AdoConstants.ColumnTriggerName} = @{SqlParameters.TriggerName} AND {AdoConstants.ColumnTriggerGroup} = @{SqlParameters.TriggerGroup}";
+    internal static readonly string SqlSettleTriggerRow = StdAdoConstants.SqlLockTriggerRow;
 
     /// <summary>
     /// Waits until no commit still settling on the database holds <paramref name="triggerKey" />'s row;

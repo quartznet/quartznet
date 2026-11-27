@@ -249,10 +249,13 @@ internal abstract partial class AdoJobStoreBase
     /// What a completion that takes no lock is left with is a firing that may run beside itself, ending
     /// with <see cref="SchedulerInstruction.NoInstruction" /> or
     /// <see cref="SchedulerInstruction.DeleteTrigger" />: it deletes its fired row by entry id, deletes
-    /// its trigger row by key when the trigger is spent, clears a retry count and writes its job's
-    /// data. Each is one statement on one row that no other path decides from, and a concurrent editor
-    /// of the same trigger key is answered by the row itself — a replace whose <c>UPDATE</c> finds the
-    /// row gone inserts, a reschedule whose <c>DELETE</c> finds it gone says so.
+    /// its trigger's rows when the trigger is spent, clears a retry count and writes its job's data. Each
+    /// writes only rows that no other path decides from. A concurrent editor of the same trigger key is
+    /// answered by the trigger's row, which the deletion takes first, as every other write of a trigger's
+    /// rows does, and deletes only while it holds the discriminator and the fire time the completion read
+    /// (#4399): an editor that comes after it waits for it and finds the row gone — a replace whose
+    /// <c>UPDATE</c> finds it gone inserts, a reschedule whose <c>DELETE</c> finds it gone says so — and
+    /// one that came before it has moved the fire time, so the deletion leaves its row alone.
     /// </para>
     /// <para>
     /// Everything else stays under the lock, each for a read it would otherwise race:
@@ -515,7 +518,7 @@ internal abstract partial class AdoJobStoreBase
                             : await Delegate.SelectTriggerHeader(conn, trigger.Key, cancellationToken).ConfigureAwait(false);
                         if (header is not null && !header.NextFireTimeUtc.HasValue)
                         {
-                            triggerDeleted = await DeleteTrigger(conn, trigger.Key, jobDetail, !continuationsSettled, header.TriggerType, cancellationToken).ConfigureAwait(false);
+                            triggerDeleted = await DeleteTrigger(conn, trigger.Key, jobDetail, !continuationsSettled, header, cancellationToken).ConfigureAwait(false);
                         }
                     }
                     else
@@ -595,7 +598,7 @@ internal abstract partial class AdoJobStoreBase
                         // Read back rather than trusted, exactly as the DeleteTrigger branch above does:
                         // the trigger may have been rescheduled while the firing was in flight, and a
                         // trigger with a fire time ahead of it is nobody's leftover.
-                        triggerDeleted = await DeleteTrigger(conn, trigger.Key, jobDetail, !continuationsSettled, header.TriggerType, cancellationToken).ConfigureAwait(false);
+                        triggerDeleted = await DeleteTrigger(conn, trigger.Key, jobDetail, !continuationsSettled, header, cancellationToken).ConfigureAwait(false);
                     }
                 }
 
@@ -637,7 +640,7 @@ internal abstract partial class AdoJobStoreBase
                     StoredTriggerHeader? header = await Delegate.SelectTriggerHeader(conn, trigger.Key, cancellationToken).ConfigureAwait(false);
                     if (header is { State: StoredTriggerState.Complete, NextFireTimeUtc: null })
                     {
-                        triggerDeleted = await DeleteTrigger(conn, trigger.Key, jobDetail, !continuationsSettled, header.TriggerType, cancellationToken).ConfigureAwait(false);
+                        triggerDeleted = await DeleteTrigger(conn, trigger.Key, jobDetail, !continuationsSettled, header, cancellationToken).ConfigureAwait(false);
                     }
                 }
                 // Not for a firing handed back: its replay starts from the data this run started with, as
@@ -735,7 +738,7 @@ internal abstract partial class AdoJobStoreBase
 
         if (next is null)
         {
-            bool deleted = await DeleteTrigger(conn, triggerKey, jobDetail, settleContinuations, header.TriggerType, cancellationToken).ConfigureAwait(false);
+            bool deleted = await DeleteTrigger(conn, triggerKey, jobDetail, settleContinuations, header, cancellationToken).ConfigureAwait(false);
             ITrigger finalized = stored;
             conn.NotifyAfterCommit((notifier, token) => notifier.NotifySchedulerListenersFinalized(finalized, token));
             return (true, deleted);

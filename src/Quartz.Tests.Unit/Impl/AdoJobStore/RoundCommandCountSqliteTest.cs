@@ -250,7 +250,8 @@ public sealed class RoundCommandCountSqliteTest
     /// <summary>
     /// A spent one-off of a durable job, whose job runs beside itself, completes without the lock in one
     /// read — its header beside whatever awaits it — and one write: the trigger, its schedule row and its
-    /// fired rows as one batch. It used to be two reads and three writes.
+    /// fired rows as one batch. It used to be two reads and three writes. The batch takes the trigger's row
+    /// first, as a replace does, and each delete is held to the row as it was read (#4399).
     /// </summary>
     [Test]
     public async Task ASpentOneOffCompletesInOneReadAndOneWrite()
@@ -263,14 +264,16 @@ public sealed class RoundCommandCountSqliteTest
         List<string> kinds = Kinds();
         Report("a spent one-off's lock-free completion", kinds);
 
+        string[] deletion = ["lock-trigger-as-read", "delete-simple-as-read", "delete-trigger-as-read", "delete-fired-of-deleted"];
         kinds.Should().Equal(
-            batches ? ["header-and-awaiting", "batch:delete-simple"] : ["header-and-awaiting", "delete-simple", "delete-trigger-of-type", "delete-fired-of-deleted"],
-            "the probe and the double-check are one read, and the three deletes go together where the driver batches");
-        kinds.Should().NotContain(["awaiting", "header", "delete-fired-by-entry", "delete-trigger"]);
+            batches ? ["header-and-awaiting", "batch:lock-trigger-as-read"] : ["header-and-awaiting", .. deletion],
+            "the probe and the double-check are one read, and the lock and the three deletes go together where the driver batches");
+        kinds.Should().NotContain(["awaiting", "header", "delete-fired-by-entry", "delete-trigger", "delete-simple", "delete-trigger-of-type"]);
 
         if (batches)
         {
-            provider.RoundTrips.Single(x => x.IsBatch).Statements.Should().HaveCount(3);
+            provider.RoundTrips.Single(x => x.IsBatch).Statements.Select(Kind).Should().Equal(deletion,
+                "the trigger's row before its schedule row, the order every other write of a trigger's rows takes");
         }
 
         (await store.GetTrigger(firing.Trigger.Key)).Should().BeNull("the trigger has nothing left to fire");
@@ -317,8 +320,8 @@ public sealed class RoundCommandCountSqliteTest
         bool replaced = false;
         provider.BeforeCommand = async (sql, connection, transaction) =>
         {
-            // Between the completion's read and its first delete.
-            if (Kind(sql) != "delete-simple" || replaced)
+            // Between the completion's read and its first write.
+            if (Kind(sql) != "lock-trigger-as-read" || replaced)
             {
                 return;
             }
@@ -346,9 +349,105 @@ public sealed class RoundCommandCountSqliteTest
             "the replacement keeps its fired rows, and the completion's own row went by entry id");
         kinds.Count(x => x == "delete-fired-by-entry").Should().Be(1, "a completion whose trigger stays deletes its fired row by entry id, as always");
 
-        // Written as before: the trigger is a cron trigger now, so the completion's deletes name the row
-        // by the type it read and sweep fired rows only once no row is there.
-        kinds.Should().Contain(batches ? "batch:delete-simple" : "delete-trigger-of-type");
+        // The lock names the row by the type it read, so it matches nothing: the batch's deletes, held to
+        // the same row, match nothing either, and one by one the deletes are not sent at all.
+        kinds.Should().Contain(batches ? "batch:lock-trigger-as-read" : "lock-trigger-as-read");
+        kinds.Should().NotContain(["delete-simple-as-read", "delete-trigger-as-read"]);
+    }
+
+    /// <summary>
+    /// A replacement of the same type carries the discriminator the completion read, and a fire time where
+    /// the spent row had none (#4399). The lock and the deletes are held to the fire time too: the
+    /// replacement and its schedule row are left alone.
+    /// </summary>
+    [Test]
+    public async Task AOneOffReplacedByTheSameTypeBetweenTheReadAndTheDeleteIsLeftAlone()
+    {
+        await Schedule("one-off", nonConcurrent: false, oneOff: true);
+        TriggerFiredBundle firing = await FireOne();
+        TriggerKey key = firing.Trigger.Key;
+
+        bool replaced = false;
+        provider.BeforeCommand = async (sql, connection, transaction) =>
+        {
+            // Between the completion's read and its first write.
+            if (Kind(sql) != "lock-trigger-as-read" || replaced)
+            {
+                return;
+            }
+
+            // What a replace with another one-off under the same key leaves: the same row and schedule row,
+            // with a fire time again, written inside the completion's own transaction so that its next
+            // statement sees it, as one on another connection would once the replace committed.
+            replaced = true;
+            await Execute(connection, transaction, "UPDATE QRTZ_TRIGGERS SET TRIGGER_STATE = 'WAITING', NEXT_FIRE_TIME = @t WHERE SCHED_NAME = @s AND TRIGGER_NAME = @n AND TRIGGER_GROUP = @g", key, ("@t", epoch.AddHours(1).UtcTicks));
+        };
+
+        provider.Reset();
+        await Complete(firing, SchedulerInstruction.DeleteTrigger);
+        List<string> kinds = Kinds();
+
+        replaced.Should().BeTrue("the premise: the row was replaced between the read and the delete");
+        (await Column("TRIGGER_TYPE", key.Name)).Should().Be(AdoConstants.TriggerTypeSimple, "the premise: the replacement has the type the completion read");
+        (await Column("NEXT_FIRE_TIME", key.Name)).Should().Be(epoch.AddHours(1).UtcTicks, "the replacement is not the spent row the completion read, and is left alone");
+        (await Count("QRTZ_SIMPLE_TRIGGERS")).Should().Be(1, "with its schedule row");
+        (await Count("QRTZ_FIRED_TRIGGERS")).Should().Be(0, "the completion's own fired row went by entry id");
+        kinds.Should().Contain(batches ? "batch:lock-trigger-as-read" : "lock-trigger-as-read");
+        kinds.Should().NotContain(["delete-simple-as-read", "delete-trigger-as-read"], "nothing is deleted once the lock found the row moved");
+    }
+
+    /// <summary>
+    /// A trigger whose type table the delegate does not name — a recurrence trigger, or one of a persistence
+    /// delegate of somebody's own — is deleted by the persistence delegate's own members, by key. The
+    /// completion takes the row as it read it first, and deletes it once that matched (#4399).
+    /// </summary>
+    [Test]
+    public async Task ASpentTriggerWhoseTypeTableIsNotNamedIsDeletedOnceItsRowIsTakenAsRead()
+    {
+        await ScheduleSpentRecurrence("recurrence");
+        TriggerFiredBundle firing = await FireOne();
+
+        provider.Reset();
+        await Complete(firing, SchedulerInstruction.DeleteTrigger);
+        List<string> kinds = Kinds();
+
+        kinds.Should().ContainInOrder(["header-and-awaiting", "lock-trigger-as-read", "lock-trigger", "delete-trigger"],
+            "the row as read is taken first, and the persistence delegate's own deletion follows");
+        (await store.GetTrigger(firing.Trigger.Key)).Should().BeNull("the trigger has nothing left to fire");
+        (await Count("QRTZ_FIRED_TRIGGERS")).Should().Be(0, "its fired rows go with it");
+    }
+
+    /// <summary>
+    /// The same trigger replaced between the completion's read and its first write: the lock finds the row
+    /// moved, and the persistence delegate's deletion by key is not called at all (#4399).
+    /// </summary>
+    [Test]
+    public async Task ASpentTriggerWhoseTypeTableIsNotNamedIsLeftAloneOnceReplaced()
+    {
+        await ScheduleSpentRecurrence("recurrence");
+        TriggerFiredBundle firing = await FireOne();
+        TriggerKey key = firing.Trigger.Key;
+
+        bool replaced = false;
+        provider.BeforeCommand = async (sql, connection, transaction) =>
+        {
+            if (Kind(sql) != "lock-trigger-as-read" || replaced)
+            {
+                return;
+            }
+
+            replaced = true;
+            await Execute(connection, transaction, "UPDATE QRTZ_TRIGGERS SET TRIGGER_STATE = 'WAITING', NEXT_FIRE_TIME = @t WHERE SCHED_NAME = @s AND TRIGGER_NAME = @n AND TRIGGER_GROUP = @g", key, ("@t", epoch.AddHours(1).UtcTicks));
+        };
+
+        provider.Reset();
+        await Complete(firing, SchedulerInstruction.DeleteTrigger);
+        List<string> kinds = Kinds();
+
+        replaced.Should().BeTrue("the premise: the row was replaced between the read and the delete");
+        (await Column("NEXT_FIRE_TIME", key.Name)).Should().Be(epoch.AddHours(1).UtcTicks, "the replacement is not the spent row the completion read, and is left alone");
+        kinds.Should().Contain("lock-trigger-as-read");
+        kinds.Should().NotContain(["lock-trigger", "delete-trigger"], "the deletion by key is not called once the lock found the row moved");
     }
 
     //---------------------------------------------------------------------------
@@ -375,6 +474,25 @@ public sealed class RoundCommandCountSqliteTest
         trigger.ComputeFirstFireTimeUtc(calendar: null);
         await store.ScheduleJob(job, trigger);
         return job;
+    }
+
+    /// <summary>
+    /// A recurrence trigger with one occurrence, due now, of a durable job that runs beside itself: once
+    /// fired it is spent, and its completion takes no lock.
+    /// </summary>
+    private async Task ScheduleSpentRecurrence(string name)
+    {
+        IJobDetail job = JobBuilder.Create<ConcurrentJob>().WithIdentity(name, Group).StoreDurably().Build();
+
+        IOperableTrigger trigger = (IOperableTrigger) TriggerBuilder.Create(clock)
+            .WithIdentity(name, Group)
+            .ForJob(job)
+            .StartAt(clock.GetUtcNow())
+            .WithRecurrenceSchedule("FREQ=DAILY;COUNT=1")
+            .Build();
+
+        trigger.ComputeFirstFireTimeUtc(calendar: null);
+        await store.ScheduleJob(job, trigger);
     }
 
     private async Task<IOperableTrigger> ScheduleContinuation(string name, TriggerKey parent)
@@ -525,6 +643,26 @@ public sealed class RoundCommandCountSqliteTest
             return "delete-fired-by-entry";
         }
 
+        if (IsEither(sql, StdAdoConstants.SqlLockTriggerAsRead))
+        {
+            return "lock-trigger-as-read";
+        }
+
+        if (IsEither(sql, StdAdoConstants.SqlDeleteSimpleTriggerAsRead))
+        {
+            return "delete-simple-as-read";
+        }
+
+        if (IsEither(sql, StdAdoConstants.SqlDeleteTriggerAsRead))
+        {
+            return "delete-trigger-as-read";
+        }
+
+        if (sql == Sql(StdAdoConstants.SqlLockTriggerRow))
+        {
+            return "lock-trigger";
+        }
+
         if (sql == Sql(StdAdoConstants.SqlDeleteTriggerOfType))
         {
             return "delete-trigger-of-type";
@@ -559,6 +697,8 @@ public sealed class RoundCommandCountSqliteTest
     }
 
     private static string Sql(string constant) => AdoJobStoreUtil.ReplaceTablePrefixCached(constant, AdoConstants.DefaultTablePrefix);
+
+    private static bool IsEither(string sql, StdAdoConstants.FireTimeHeld held) => sql == Sql(held.IfStillNull) || sql == Sql(held.IfUnchanged);
 
     //---------------------------------------------------------------------------
     // The rows
