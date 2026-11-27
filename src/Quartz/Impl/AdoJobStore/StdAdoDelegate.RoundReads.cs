@@ -244,43 +244,71 @@ public partial class StdAdoDelegate
     /// Deletes the trigger row a completion has just read the header of, the row of the type table its
     /// discriminator names, and the fired-trigger rows of its firings: what <see cref="DeleteTrigger" />
     /// and then <see cref="DeleteFiredTriggers(ConnectionAndTransactionHolder, FiredTriggerQuery, CancellationToken)" />
-    /// delete, as one <see cref="DbBatch" /> where the round batches and as the same three statements
-    /// where it does not.
+    /// delete, as one <see cref="DbBatch" /> where the round batches and as the same statements where it
+    /// does not.
     /// </summary>
     /// <remarks>
     /// <para>
     /// The caller knows the discriminator from the header it has just read, so the type table is named
     /// rather than tried in turn as <see cref="DeleteTriggerExtension" /> tries them. A discriminator
     /// whose table this delegate cannot name — a persistence delegate of somebody's own — takes the two
-    /// members as before.
+    /// members, once the row is found to be the one read.
     /// </para>
     /// <para>
     /// <b>The row deleted is the row that was read, and no other.</b> A lock-free completion holds no
     /// <see cref="SchedulerLock.TriggerAccess" /> and has written nothing to the row before its header
-    /// read, so a reschedule under the lock can replace the row between that read and this write. The
-    /// trigger-row delete names the discriminator the header read (<see cref="StdAdoConstants.SqlDeleteTriggerOfType" />),
-    /// so a replacement of another type is left alone — where a delete by key alone, with the type
-    /// table's foreign key cascading, would have taken the replacement and its schedule with it — and the
-    /// fired rows are swept only while no row of the key is there at all
+    /// read, so a replace or a reschedule under the lock can write the row between that read and this
+    /// deletion. Each statement is held to the row as it was read: its discriminator, which a replacement
+    /// of another type does not carry (#4066), and its fire time, which a replacement of the same type does
+    /// not carry either, since every store, fire, misfire and replace moves it (#4067, #4399). The fired rows
+    /// are swept only while no row of the key is there at all
     /// (<see cref="StdAdoConstants.SqlDeleteFiredTriggersOfDeletedTrigger" />), so a replacement keeps its
     /// fired rows, which may be another node's firing of it in flight. A row that was really deleted loses
-    /// them, as before. A replacement of the same type is deleted as it always was, by this path and by
-    /// the two members: the row's key and type are all a completion knows it by.
+    /// them, as before.
+    /// </para>
+    /// <para>
+    /// <b>The trigger's row is taken first.</b> The first statement writes the row without changing it
+    /// (<see cref="StdAdoConstants.SqlLockTriggerAsRead" />), so the completion takes the trigger's row before
+    /// its type table's, in the order every other write of a trigger's rows takes them, a replace's and
+    /// <see cref="DeleteTrigger" />'s included. Two writers that took the rows in opposite orders could each
+    /// wait for the other (#4399). A replace that comes after it waits for the deletion and stores the trigger
+    /// as new; one that came before it has moved the fire time, so nothing here matches its row.
     /// </para>
     /// </remarks>
     /// <param name="conn">The transaction.</param>
     /// <param name="triggerKey">The trigger to delete.</param>
     /// <param name="storedTriggerType">The discriminator the trigger's row holds, as its header read it.</param>
+    /// <param name="nextFireTimeUtc">The fire time the trigger's row holds, as its header read it.</param>
     /// <param name="cancellationToken">The cancellation instruction.</param>
     /// <returns>Whether the trigger's row was still the one read, and was deleted.</returns>
     internal async ValueTask<bool> DeleteTriggerAndFiredRows(
         ConnectionAndTransactionHolder conn,
         TriggerKey triggerKey,
         string storedTriggerType,
+        DateTimeOffset? nextFireTimeUtc,
         CancellationToken cancellationToken = default)
     {
-        if (TypeTableDeleteSql(storedTriggerType) is not { } typeTableDelete)
+        // The key, then the discriminator, then — for a row read with one — the fire time: the order each
+        // held statement names them in.
+        SqlStatementParameter[] asRead = nextFireTimeUtc is { } expected
+            ?
+            [
+                new SqlStatementParameter(SqlParameters.TriggerType, storedTriggerType),
+                new SqlStatementParameter(SqlParameters.ExpectedNextFireTime, GetDbDateTimeValue(expected)),
+            ]
+            : [new SqlStatementParameter(SqlParameters.TriggerType, storedTriggerType)];
+
+        SqlStatement lockRow = KeyedStatement(StdAdoConstants.SqlLockTriggerAsRead.For(nextFireTimeUtc), triggerKey, asRead);
+
+        if (TypeTableDeleteAsRead(storedTriggerType) is not { } typeTableDelete)
         {
+            // A persistence delegate of somebody's own deletes its rows by key, which cannot be held to the
+            // row as read: the row is taken first, and deleted only while it is that row.
+            if (await ExecuteStatement(conn, lockRow, cancellationToken).ConfigureAwait(false) == 0)
+            {
+                return false;
+            }
+
             bool removed = await DeleteTrigger(conn, triggerKey, cancellationToken).ConfigureAwait(false) > 0;
             if (removed)
             {
@@ -292,25 +320,25 @@ public partial class StdAdoDelegate
 
         List<SqlStatement> statements =
         [
-            KeyedStatement(typeTableDelete, triggerKey),
-            KeyedStatement(StdAdoConstants.SqlDeleteTriggerOfType, triggerKey, new SqlStatementParameter(SqlParameters.TriggerType, storedTriggerType)),
+            lockRow,
+            KeyedStatement(typeTableDelete.For(nextFireTimeUtc), triggerKey, asRead),
+            KeyedStatement(StdAdoConstants.SqlDeleteTriggerAsRead.For(nextFireTimeUtc), triggerKey, asRead),
             KeyedStatement(StdAdoConstants.SqlDeleteFiredTriggersOfDeletedTrigger, triggerKey),
         ];
 
         if (!BatchesRounds(conn))
         {
-            int triggerRowsDeleted = 0;
-            for (int i = 0; i < statements.Count; i++)
+            // Nothing below matches a row the lock did not: the row is not the one read.
+            if (await ExecuteStatement(conn, statements[LockStatement], cancellationToken).ConfigureAwait(false) == 0)
             {
-                SqlStatement statement = statements[i];
-                using DbCommand cmd = PrepareCommand(conn, statement.Sql);
-                foreach (SqlStatementParameter parameter in statement.Parameters)
-                {
-                    AddCommandParameter(cmd, parameter.Name, parameter.Value, parameter.DataType);
-                }
+                return false;
+            }
 
-                int rows = await cmd.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
-                if (i == 1)
+            int triggerRowsDeleted = 0;
+            for (int i = LockStatement + 1; i < statements.Count; i++)
+            {
+                int rows = await ExecuteStatement(conn, statements[i], cancellationToken).ConfigureAwait(false);
+                if (i == TriggerRowStatement)
                 {
                     triggerRowsDeleted = rows;
                 }
@@ -324,45 +352,63 @@ public partial class StdAdoDelegate
         int total = await batch.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
 
         // The trigger row's own count where the provider reports one per command. A provider that does
-        // not reports -1, and then the total says: the type row goes only with the row it belongs to, and
-        // the fired rows only once no row is there, so anything deleted at all means the row read was
-        // deleted, or was already gone with its fired rows left behind by a reschedule to another key —
-        // which this sweep takes, as the deletion of a row that is there would have.
-        int triggerRows = batch.BatchCommands[1].RecordsAffected;
+        // not reports -1, and then the total says: the lock and the deletes match only the row read, the
+        // lock exactly when the deletes do, and the fired rows go only once no row is there, so anything
+        // written at all means the row read was deleted, or was already gone with its fired rows left behind
+        // by a reschedule to another key — which this sweep takes, as the deletion of a row that is there
+        // would have.
+        int triggerRows = batch.BatchCommands[TriggerRowStatement].RecordsAffected;
         return triggerRows >= 0 ? triggerRows > 0 : total > 0;
     }
 
+    /// <summary>The index of <see cref="DeleteTriggerAndFiredRows" />'s lock of the trigger's row.</summary>
+    private const int LockStatement = 0;
+
+    /// <summary>The index of <see cref="DeleteTriggerAndFiredRows" />'s deletion of the trigger's row.</summary>
+    private const int TriggerRowStatement = 2;
+
+    private async ValueTask<int> ExecuteStatement(ConnectionAndTransactionHolder conn, SqlStatement statement, CancellationToken cancellationToken)
+    {
+        using DbCommand cmd = PrepareCommand(conn, statement.Sql);
+        foreach (SqlStatementParameter parameter in statement.Parameters)
+        {
+            AddCommandParameter(cmd, parameter.Name, parameter.Value, parameter.DataType);
+        }
+
+        return await cmd.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
+    }
+
     /// <summary>
-    /// The statement that deletes a trigger's row from the type table its discriminator names, or
-    /// <see langword="null" /> when the table is not one this delegate can name: a persistence delegate
-    /// of somebody's own, or a discriminator nothing registered handles.
+    /// The statement that deletes a trigger's row from the type table its discriminator names, held to the
+    /// trigger's row as read, or <see langword="null" /> when the table is not one this delegate can name: a
+    /// persistence delegate of somebody's own, or a discriminator nothing registered handles.
     /// </summary>
     /// <remarks>
     /// Exact types, not <c>is</c>: a subclass of a shipped persistence delegate may delete something more,
     /// and gets its own member called.
     /// </remarks>
-    private string? TypeTableDeleteSql(string storedTriggerType)
+    private StdAdoConstants.FireTimeHeld? TypeTableDeleteAsRead(string storedTriggerType)
     {
         ITriggerPersistenceDelegate? persistenceDelegate = FindTriggerPersistenceDelegate(storedTriggerType);
         if (persistenceDelegate is null)
         {
-            return storedTriggerType == AdoConstants.TriggerTypeBlob ? StdAdoConstants.SqlDeleteBlobTrigger : null;
+            return storedTriggerType == AdoConstants.TriggerTypeBlob ? StdAdoConstants.SqlDeleteBlobTriggerAsRead : null;
         }
 
         Type type = persistenceDelegate.GetType();
         if (type == typeof(SimpleTriggerPersistenceDelegate))
         {
-            return StdAdoConstants.SqlDeleteSimpleTrigger;
+            return StdAdoConstants.SqlDeleteSimpleTriggerAsRead;
         }
 
         if (type == typeof(CronTriggerPersistenceDelegate))
         {
-            return StdAdoConstants.SqlDeleteCronTrigger;
+            return StdAdoConstants.SqlDeleteCronTriggerAsRead;
         }
 
         if (type == typeof(CalendarIntervalTriggerPersistenceDelegate) || type == typeof(DailyTimeIntervalTriggerPersistenceDelegate))
         {
-            return SimplePropertiesTriggerPersistenceDelegateBase.DeleteSimplePropsTrigger;
+            return StdAdoConstants.SqlDeleteSimplePropsTriggerAsRead;
         }
 
         return null;

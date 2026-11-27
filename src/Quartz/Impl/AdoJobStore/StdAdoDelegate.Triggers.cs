@@ -1318,11 +1318,26 @@ public partial class StdAdoDelegate
     }
 
     /// <inheritdoc />
+    /// <remarks>
+    /// Takes the trigger's row first, with a write that changes nothing (<c>SET TRIGGER_STATE = TRIGGER_STATE</c>),
+    /// and then deletes the type table's row and the trigger's: the type row has to go first where the foreign
+    /// key does not cascade, and every other write of a trigger's rows takes the trigger's row first. A
+    /// deletion that took the type row first could wait for a completion that holds the trigger's row and
+    /// wants the type row, while the completion waits for it (#4399).
+    /// </remarks>
     public virtual async ValueTask<int> DeleteTrigger(
         ConnectionAndTransactionHolder conn,
         TriggerKey triggerKey,
         CancellationToken cancellationToken = default)
     {
+        using (DbCommand lockRow = PrepareCommand(conn, ReplaceTablePrefix(StdAdoConstants.SqlLockTriggerRow)))
+        {
+            AddCommandParameter(lockRow, SqlParameters.SchedulerName, schedulerName);
+            AddCommandParameter(lockRow, SqlParameters.TriggerName, triggerKey.Name);
+            AddCommandParameter(lockRow, SqlParameters.TriggerGroup, triggerKey.Group);
+            await lockRow.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
+        }
+
         await DeleteTriggerExtension(conn, triggerKey, cancellationToken).ConfigureAwait(false);
 
         using var cmd = PrepareCommand(conn, ReplaceTablePrefix(StdAdoConstants.SqlDeleteTrigger));
