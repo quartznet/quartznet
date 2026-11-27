@@ -19,6 +19,7 @@
 
 #endregion
 
+using System.Data.Common;
 using System.Diagnostics.CodeAnalysis;
 
 using Weasel.Core;
@@ -63,7 +64,7 @@ internal sealed class QuartzTableNaming
 
     public string Prefix { get; }
 
-    public Table Table(string name) => new(Name(name))
+    public Table Table(string name) => new QuartzMySqlTable(Name(name))
     {
         // An application's own columns, indexes and foreign keys on these tables are never dropped, and
         // neither are a newer Quartz node's columns when an older node applies its model.
@@ -91,6 +92,36 @@ internal sealed class QuartzTableNaming
 
     public ISchemaObject RetiredIndex(string table, string suffix) =>
         new RetiredMySqlIndex(new MySqlObjectName(Schema, QuartzNaming.IndexName(Prefix, suffix)), Prefix + table);
+}
+
+/// <summary>
+/// A Quartz table on MySQL, which reads an existing <c>BLOB</c> column as the <c>MEDIUMBLOB</c> the model
+/// declares: widening a column copies the table and blocks writes, so Weasel never does it at startup.
+/// </summary>
+internal sealed class QuartzMySqlTable : Table
+{
+    public QuartzMySqlTable(MySqlObjectName name) : base(name)
+    {
+    }
+
+    public override async Task<ISchemaObjectDelta> CreateDeltaAsync(DbDataReader reader, CancellationToken ct = default)
+    {
+        TableDelta delta = (TableDelta) await base.CreateDeltaAsync(reader, ct).ConfigureAwait(false);
+        if (delta.Actual is not { } actual)
+        {
+            return delta;
+        }
+
+        foreach (TableColumn column in actual.Columns.Where(c => c.Type.Equals("BLOB", StringComparison.OrdinalIgnoreCase)))
+        {
+            if (Columns.Any(x => x.Name.Equals(column.Name, StringComparison.OrdinalIgnoreCase) && x.Type.Equals("MEDIUMBLOB", StringComparison.OrdinalIgnoreCase)))
+            {
+                column.Type = "MEDIUMBLOB";
+            }
+        }
+
+        return new TableDelta(this, actual);
+    }
 }
 
 /// <summary>

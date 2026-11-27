@@ -34,7 +34,7 @@ internal static partial class QuartzTables
         jobDetails.AddColumn("IS_NONCONCURRENT", "TINYINT(1)").NotNull();
         jobDetails.AddColumn("IS_UPDATE_DATA", "TINYINT(1)").NotNull();
         jobDetails.AddColumn("REQUESTS_RECOVERY", "TINYINT(1)").NotNull();
-        jobDetails.AddColumn("JOB_DATA", "BLOB");
+        jobDetails.AddColumn("JOB_DATA", "MEDIUMBLOB");
         naming.PrimaryKey(jobDetails);
         naming.Index(jobDetails, "J_G_N", ["SCHED_NAME", "JOB_GROUP", "JOB_NAME"]);
         objects.Add(jobDetails);
@@ -70,7 +70,7 @@ internal static partial class QuartzTables
         triggers.AddColumn("PAUSED_AT", "BIGINT");
         triggers.AddColumn("MISFIRE_THRESHOLD", "BIGINT");
         triggers.AddColumn("FIXED_DELAY", "TINYINT(1)");
-        triggers.AddColumn("JOB_DATA", "BLOB");
+        triggers.AddColumn("JOB_DATA", "MEDIUMBLOB");
         naming.PrimaryKey(triggers);
         naming.ForeignKey(triggers, "JOB_DETAILS", ["SCHED_NAME", "JOB_NAME", "JOB_GROUP"], ["SCHED_NAME", "JOB_NAME", "JOB_GROUP"], cascade: false);
         naming.Index(triggers, "T_J", ["SCHED_NAME", "JOB_NAME", "JOB_GROUP"]);
@@ -124,7 +124,7 @@ internal static partial class QuartzTables
         blobTriggers.AddColumn("SCHED_NAME", "VARCHAR(120)").NotNull().AsPrimaryKey();
         blobTriggers.AddColumn("TRIGGER_NAME", "VARCHAR(200)").NotNull().AsPrimaryKey();
         blobTriggers.AddColumn("TRIGGER_GROUP", "VARCHAR(200)").NotNull().AsPrimaryKey();
-        blobTriggers.AddColumn("BLOB_DATA", "BLOB");
+        blobTriggers.AddColumn("BLOB_DATA", "MEDIUMBLOB");
         naming.PrimaryKey(blobTriggers);
         naming.ForeignKey(blobTriggers, "TRIGGERS", ["SCHED_NAME", "TRIGGER_NAME", "TRIGGER_GROUP"], ["SCHED_NAME", "TRIGGER_NAME", "TRIGGER_GROUP"], cascade: false);
         objects.Add(blobTriggers);
@@ -132,7 +132,7 @@ internal static partial class QuartzTables
         Table calendars = naming.Table("CALENDARS");
         calendars.AddColumn("SCHED_NAME", "VARCHAR(120)").NotNull().AsPrimaryKey();
         calendars.AddColumn("CALENDAR_NAME", "VARCHAR(200)").NotNull().AsPrimaryKey();
-        calendars.AddColumn("CALENDAR", "BLOB").NotNull();
+        calendars.AddColumn("CALENDAR", "MEDIUMBLOB").NotNull();
         naming.PrimaryKey(calendars);
         objects.Add(calendars);
 

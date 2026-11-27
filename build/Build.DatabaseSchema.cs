@@ -234,7 +234,7 @@ partial class Build
         return Column(name,
             sqlServer: $"varbinary(max) {ss}",
             postgres: $"BYTEA {ss}",
-            mysql: $"BLOB {ss}",
+            mysql: $"MEDIUMBLOB {ss}",
             oracle: $"BLOB {ss}",
             sqlite: $"BLOB {ss}",
             firebird: $"BLOB {fb}");

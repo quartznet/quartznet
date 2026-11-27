@@ -72,6 +72,32 @@ internal sealed record SchemaSnapshot(
     }
 
     /// <summary>
+    /// The columns a fresh MySQL install declares <c>MEDIUMBLOB</c>, as table and column without the table prefix.
+    /// </summary>
+    internal static readonly HashSet<string> MySqlMediumBlobColumns =
+        ["JOB_DETAILS|JOB_DATA", "TRIGGERS|JOB_DATA", "BLOB_TRIGGERS|BLOB_DATA", "CALENDARS|CALENDAR"];
+
+    /// <summary>
+    /// On MySQL, this snapshot with each of those columns that is still <c>BLOB</c> read as the
+    /// <c>MEDIUMBLOB</c> a fresh install creates; on any other dialect, this snapshot.
+    /// </summary>
+    /// <remarks>
+    /// A MySQL database created before 4.9 has <c>BLOB</c> there, and no migration widens it: on MySQL,
+    /// changing a column's type copies the table and blocks writes while it runs, so it is an optional step
+    /// for the database's owner. Such a database is still a complete schema.
+    /// </remarks>
+    public SchemaSnapshot WithBlobsAsMediumBlobs(string dialect) => dialect != "mysql_innodb" ? this : this with
+    {
+        Columns = [.. Columns.Select(column =>
+        {
+            string[] cells = column.Split('|');
+            return cells.Length == 5 && cells[2] == "BLOB" && MySqlMediumBlobColumns.Contains(cells[0] + "|" + cells[1])
+                ? $"{cells[0]}|{cells[1]}|MEDIUMBLOB|{cells[3]}|16777215"
+                : column;
+        }).Order(StringComparer.Ordinal)],
+    };
+
+    /// <summary>
     /// Keys, one string each, from rows a key query returns one column at a time.
     /// </summary>
     /// <remarks>

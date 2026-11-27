@@ -116,7 +116,7 @@ public abstract class EntityFrameworkCoreServerTest
 
         await using DbConnection connection = await database.OpenAsync();
 
-        (await SchemaSnapshot.ReadAsync(connection, Dialect, "QRTZB_")).Should().BeEquivalentTo(
+        (await SchemaSnapshot.ReadAsync(connection, Dialect, "QRTZB_")).WithBlobsAsMediumBlobs(Dialect).Should().BeEquivalentTo(
             await SchemaSnapshot.ReadAsync(connection, Dialect, "QRTZ_"));
 
         await MigratedSchemaWorkload.RunAsync(connection, Dialect, database.ConnectionString, "QRTZB_");
@@ -239,7 +239,8 @@ public sealed class MySqlEntityFrameworkCoreTest : EntityFrameworkCoreAppAnyServ
 
     private protected override Action<QuartzModelBuilder> UseAppAny(string prefix) => q => q.UseMySql(prefix);
 
-    private protected override string[] LeftColumns => ["FIRED_TRIGGERS|IS_NONCONCURRENT"];
+    private protected override string[] LeftColumns =>
+        ["FIRED_TRIGGERS|IS_NONCONCURRENT", "JOB_DETAILS|JOB_DATA", "TRIGGERS|JOB_DATA", "BLOB_TRIGGERS|BLOB_DATA", "CALENDARS|CALENDAR"];
 
     private protected override string[] LeftForeignKeys => ["TRIGGERS", "SIMPLE_TRIGGERS", "SIMPROP_TRIGGERS", "CRON_TRIGGERS", "BLOB_TRIGGERS"];
 

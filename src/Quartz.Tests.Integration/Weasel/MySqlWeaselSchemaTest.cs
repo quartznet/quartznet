@@ -476,10 +476,30 @@ public sealed class MySqlWeaselSchemaTest
         (SchemaSnapshot actualSchema, List<string> actualDetails) = await actual.ReadAsync();
         (SchemaSnapshot expectedSchema, List<string> expectedDetails) = await expected.ReadAsync();
 
+        // An upgraded database keeps BLOB where a fresh install has MEDIUMBLOB: Weasel never widens a column.
+        actualSchema = actualSchema.WithBlobsAsMediumBlobs("mysql_innodb");
+        actualDetails = [.. actualDetails.Select(WithBlobAsMediumBlob)];
+
         actualSchema.Tables.Should().BeEquivalentTo(expectedSchema.Tables, because);
         actualSchema.Columns.Should().BeEquivalentTo(expectedSchema.Columns, because);
         actualSchema.Indexes.Should().BeEquivalentTo(expectedSchema.Indexes, because);
         actualDetails.Should().BeEquivalentTo(expectedDetails, because);
+    }
+
+    /// <summary>
+    /// A column detail row, <c>COL|table|column|type|nullable|default</c>, with a <c>blob</c> a fresh install
+    /// declares <c>mediumblob</c> read as <c>mediumblob</c>.
+    /// </summary>
+    private static string WithBlobAsMediumBlob(string detail)
+    {
+        string[] cells = detail.Split('|');
+        bool isMediumBlobColumn = cells.Length == 6
+                                  && cells[0] == "COL"
+                                  && cells[3] == "blob"
+                                  && cells[1].StartsWith("QRTZ_", StringComparison.Ordinal)
+                                  && SchemaSnapshot.MySqlMediumBlobColumns.Contains(cells[1]["QRTZ_".Length..] + "|" + cells[2]);
+
+        return isMediumBlobColumn ? string.Join("|", cells[0], cells[1], cells[2], "mediumblob", cells[4], cells[5]) : detail;
     }
 
     private static Task SeedAsync(MySqlWeaselDatabase database) => database.ExecuteAsync("""
