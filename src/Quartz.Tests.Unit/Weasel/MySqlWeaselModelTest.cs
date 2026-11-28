@@ -112,6 +112,63 @@ public sealed class MySqlWeaselModelTest
         }
     }
 
+    /// <summary>
+    /// A database created before 4.9 has <c>BLOB</c> where the model says <c>MEDIUMBLOB</c>, and one an
+    /// operator widened by hand may have <c>LONGBLOB</c>: neither reads as a change, so startup never copies
+    /// the table. Nullability is still compared.
+    /// </summary>
+    [TestCase("blob")]
+    [TestCase("BLOB")]
+    [TestCase("longblob")]
+    public void AnExistingBlobColumnReadsAsTheDeclaredMediumBlob(string actualType)
+    {
+        Table expected = JobDetails("MEDIUMBLOB");
+        Table actual = JobDetails(actualType);
+
+        QuartzMySqlTable.ReadBlobsAsDeclared(expected, actual);
+
+        new TableDelta(expected, actual).Difference.Should().Be(SchemaPatchDifference.None);
+    }
+
+    [Test]
+    public void ABlobColumnTheModelDoesNotDeclareMediumBlobIsLeftAsItIs()
+    {
+        Table expected = JobDetails("VARBINARY(100)");
+        Table actual = JobDetails("blob");
+
+        QuartzMySqlTable.ReadBlobsAsDeclared(expected, actual);
+
+        actual.ColumnFor("JOB_DATA")!.Type.Should().Be("blob");
+        new TableDelta(expected, actual).Difference.Should().NotBe(SchemaPatchDifference.None);
+    }
+
+    [Test]
+    public void ABlobColumnWhoseNullabilityDiffersStillReadsAsChanged()
+    {
+        Table expected = JobDetails("MEDIUMBLOB");
+        Table actual = JobDetails("blob", allowNulls: false);
+
+        QuartzMySqlTable.ReadBlobsAsDeclared(expected, actual);
+
+        new TableDelta(expected, actual).Difference.Should().NotBe(SchemaPatchDifference.None);
+    }
+
+    private static Table JobDetails(string jobDataType, bool allowNulls = true)
+    {
+        Table table = new(new MySqlObjectName("schedules", "QRTZ_JOB_DETAILS"));
+        table.AddColumn("JOB_NAME", "VARCHAR(200)").NotNull().AsPrimaryKey();
+        if (allowNulls)
+        {
+            table.AddColumn("JOB_DATA", jobDataType);
+        }
+        else
+        {
+            table.AddColumn("JOB_DATA", jobDataType).NotNull();
+        }
+
+        return table;
+    }
+
     [Test]
     public async Task ADatabaseInTheTablePrefixIsWhereTheTablesAre()
     {

@@ -866,9 +866,10 @@ Each statement copies its table and blocks writes to it while it runs
 On `QRTZ_TRIGGERS` that stalls every node's firing. Run them in a maintenance window.
 :::
 
-- Quartz.NET reads and writes both types the same way, on 3.x and 4.x, so the statements are safe at any version.
+- The job store reads and writes both types the same way, on 3.x and 4.x, so for the store itself the statements are safe at any version.
+- With Quartz.Weasel.MySQL, widen only once every node runs 4.9 or later: an earlier node's startup apply narrows the column back.
 - The startup schema check, Quartz.Weasel.MySQL and `MoveQuartzTablesFromAppAny` accept `BLOB` on these columns.
-  None of them widens a column.
+  None of them widens a column. Quartz.Weasel.MySQL also leaves a hand-widened `LONGBLOB` alone.
 - Keep a large map small where you can: see [What does not belong in job data](../quartz-4.x/tutorial/job-data-map.md#what-does-not-belong-in-job-data).
 
 ## See also

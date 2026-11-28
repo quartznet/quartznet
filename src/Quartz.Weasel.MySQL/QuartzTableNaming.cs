@@ -95,8 +95,9 @@ internal sealed class QuartzTableNaming
 }
 
 /// <summary>
-/// A Quartz table on MySQL, which reads an existing <c>BLOB</c> column as the <c>MEDIUMBLOB</c> the model
-/// declares: widening a column copies the table and blocks writes, so Weasel never does it at startup.
+/// A Quartz table on MySQL, which reads an existing <c>BLOB</c> or <c>LONGBLOB</c> column as the
+/// <c>MEDIUMBLOB</c> the model declares: changing a column's type copies the table and blocks writes, so
+/// Weasel never widens a <c>BLOB</c> or narrows a hand-widened <c>LONGBLOB</c> at startup.
 /// </summary>
 internal sealed class QuartzMySqlTable : Table
 {
@@ -112,16 +113,27 @@ internal sealed class QuartzMySqlTable : Table
             return delta;
         }
 
-        foreach (TableColumn column in actual.Columns.Where(c => c.Type.Equals("BLOB", StringComparison.OrdinalIgnoreCase)))
+        ReadBlobsAsDeclared(this, actual);
+        return new TableDelta(this, actual);
+    }
+
+    /// <summary>
+    /// Gives each <c>BLOB</c> or <c>LONGBLOB</c> column of <paramref name="actual" /> the type
+    /// <paramref name="expected" /> declares, where that is <c>MEDIUMBLOB</c>.
+    /// </summary>
+    internal static void ReadBlobsAsDeclared(Table expected, Table actual)
+    {
+        foreach (TableColumn column in actual.Columns.Where(c => IsAcceptedAsMediumBlob(c.Type)))
         {
-            if (Columns.Any(x => x.Name.Equals(column.Name, StringComparison.OrdinalIgnoreCase) && x.Type.Equals("MEDIUMBLOB", StringComparison.OrdinalIgnoreCase)))
+            if (expected.Columns.Any(x => x.Name.Equals(column.Name, StringComparison.OrdinalIgnoreCase) && x.Type.Equals("MEDIUMBLOB", StringComparison.OrdinalIgnoreCase)))
             {
                 column.Type = "MEDIUMBLOB";
             }
         }
-
-        return new TableDelta(this, actual);
     }
+
+    private static bool IsAcceptedAsMediumBlob(string type) =>
+        type.Equals("BLOB", StringComparison.OrdinalIgnoreCase) || type.Equals("LONGBLOB", StringComparison.OrdinalIgnoreCase);
 }
 
 /// <summary>
