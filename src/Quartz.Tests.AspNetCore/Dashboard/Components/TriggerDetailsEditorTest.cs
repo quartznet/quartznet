@@ -92,6 +92,29 @@ public sealed class TriggerDetailsEditorTest
     }
 
     [Test]
+    public void TheEditorIsUsableWhileCalendarNamesAreLoading()
+    {
+        TaskCompletionSource<List<string>> calendarNames = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        A.CallTo(() => context.Api.GetCalendarNames(TestData.SchedulerName, A<CancellationToken>._))
+            .Returns(new ValueTask<List<string>>(calendarNames.Task));
+        GivenTrigger(CronTrigger());
+
+        IRenderedComponent<TriggerDetail> page = OpenEditor();
+
+        page.Find("#trigger-edit-description").GetAttribute("value").Should().Be("before",
+            "the form is initialized before calendar suggestions finish loading");
+        page.Find("#trigger-edit-description").Change("while calendars load");
+
+        calendarNames.SetResult(["late-calendar"]);
+
+        page.WaitForAssertion(() => page.FindAll("#trigger-edit-calendars option")
+            .Select(option => option.GetAttribute("value"))
+            .Should().Equal(["late-calendar"]));
+        page.Find("#trigger-edit-description").GetAttribute("value").Should().Be("while calendars load",
+            "loading suggestions does not restart the form or erase an edit");
+    }
+
+    [Test]
     public void SavingSendsWhatChangedAndNothingElse()
     {
         GivenTrigger(CronTrigger());

@@ -208,6 +208,9 @@
 
     protected override async Task OnInitializedAsync()
     {
+        // Blazor can render while calendar loading is pending, before OnParametersSet runs.
+        InitializeForm();
+
         string? schedulerName = Scheduler.ActiveSchedulerName;
         if (string.IsNullOrWhiteSpace(schedulerName))
         {
@@ -249,7 +252,9 @@
         _cancellation.Dispose();
     }
 
-    protected override void OnParametersSet()
+    protected override void OnParametersSet() => InitializeForm();
+
+    private void InitializeForm()
     {
         if (!ReferenceEquals(_formFor, Trigger))
         {
