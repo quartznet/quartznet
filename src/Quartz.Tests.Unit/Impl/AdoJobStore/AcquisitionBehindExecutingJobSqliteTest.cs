@@ -21,11 +21,14 @@
 
 #nullable enable
 
+using System.Data.Common;
+
 using Microsoft.Data.Sqlite;
 using Microsoft.Extensions.DependencyInjection;
 
 using Quartz.Extensibility;
 using Quartz.Impl.AdoJobStore;
+using Quartz.Impl.AdoJobStore.Common;
 
 namespace Quartz.Tests.Unit.Impl.AdoJobStore;
 
@@ -53,7 +56,9 @@ namespace Quartz.Tests.Unit.Impl.AdoJobStore;
 public sealed class AcquisitionBehindExecutingJobSqliteTest
 {
     private const string Group = "behind";
+    private const string SchedulerName = "acquisition-behind-executing-job";
     private static readonly JobKey serialJobKey = new("serial", Group);
+    private static readonly JobKey otherSerialJobKey = new("other-serial", Group);
     private static readonly JobKey ordinaryJobKey = new("ordinary", Group);
 
     private SqliteTestDatabase database = null!;
@@ -62,6 +67,7 @@ public sealed class AcquisitionBehindExecutingJobSqliteTest
     private IScheduler schedulerA = null!;
     private IJobStore storeA = null!;
     private IJobStore storeB = null!;
+    private LocalTransactionJobStore? shippedStore;
     private DateTimeOffset due;
 
     [SetUp]
@@ -94,9 +100,20 @@ public sealed class AcquisitionBehindExecutingJobSqliteTest
     [TearDown]
     public async Task DisposeNodes()
     {
-        await nodeB.DisposeAsync();
-        await nodeA.DisposeAsync();
-        database.Dispose();
+        try
+        {
+            if (shippedStore is not null)
+            {
+                await shippedStore.Shutdown();
+                shippedStore = null;
+            }
+        }
+        finally
+        {
+            await nodeB.DisposeAsync();
+            await nodeA.DisposeAsync();
+            database.Dispose();
+        }
     }
 
     /// <summary>
@@ -324,6 +341,71 @@ public sealed class AcquisitionBehindExecutingJobSqliteTest
             "the job's later candidates are refused on the job the acquisition read named, unread");
         (await StateOf("serial-2")).Should().Be("WAITING");
         (await StateOf("serial-3")).Should().Be("WAITING");
+    }
+
+    /// <summary>
+    /// A serial job's later candidate, read on its own because the job's first candidate was gone when the
+    /// round read its candidates, is refused while the job executes on another node (#4173). The round's one
+    /// read of the executing jobs answers for it by the job its candidate row names. Another serial job in
+    /// the batch is what has the round make that read at all, and a read built from the rows the round read
+    /// back would leave this job out and answer that it is not executing.
+    /// </summary>
+    /// <remarks>
+    /// Through the SQLite delegate as Quartz ships it, since only a shipped delegate has the round read the
+    /// executing jobs once; the first candidate's row goes inside the round's own transaction, just before
+    /// the round reads the rows its acquisition read named.
+    /// </remarks>
+    [Test]
+    public async Task ASerialJobsCandidateReadOnItsOwnIsRefusedWhileTheJobExecutesOnAnotherNode()
+    {
+        await ScheduleSerialTriggers(3);
+        await schedulerA.AddJob(JobBuilder.Create<SerialJob>().WithIdentity(otherSerialJobKey).StoreDurably().Build());
+        await schedulerA.ScheduleJob(TriggerBuilder.Create()
+            .WithIdentity("other-serial-1", Group)
+            .ForJob(otherSerialJobKey)
+            .StartAt(due.AddSeconds(1))
+            .Build());
+
+        IOperableTrigger onA = await ReserveOne(storeA);
+        onA.Key.Name.Should().Be("serial-1", "the premise: A runs the job under a trigger of its own");
+        await Fire(storeA, onA);
+        await LeaveWaitingAsAnUnfixedNodeWould("serial-2", "serial-3");
+
+        string candidatesRead = AdoJobStoreUtil.ReplaceTablePrefixCached(StdAdoConstants.SqlSelectTriggersByKeysPrefix, AdoConstants.DefaultTablePrefix);
+        bool deleted = false;
+        CountingDbProvider provider = new(new DbProvider("SQLite-Microsoft", database.ConnectionString), emulateBatches: false);
+        provider.BeforeCommand = async (sql, connection, transaction) =>
+        {
+            if (deleted || !sql.StartsWith(candidatesRead, StringComparison.Ordinal))
+            {
+                return;
+            }
+
+            deleted = true;
+            await using DbCommand command = connection.CreateCommand();
+            command.Transaction = transaction;
+            command.CommandText = "DELETE FROM QRTZ_TRIGGERS WHERE SCHED_NAME = @s AND TRIGGER_NAME = @n AND TRIGGER_GROUP = @g";
+            AddParameter(command, "@s", SchedulerName);
+            AddParameter(command, "@n", "serial-2");
+            AddParameter(command, "@g", Group);
+            (await command.ExecuteNonQueryAsync()).Should().Be(1);
+        };
+
+        SQLiteDelegate shippedDelegate = new();
+        shippedDelegate.IsShipped.Should().BeTrue("the premise: the store keeps its one executing-jobs read for a delegate Quartz ships");
+        LocalTransactionJobStore store = await StartShippedNode("node-c", provider, shippedDelegate);
+
+        List<IOperableTrigger> acquired = await store.AcquireNextTriggers(new TriggerAcquisitionRequest
+        {
+            NoLaterThan = due.AddMinutes(1),
+            MaxCount = 3,
+            TimeWindow = TimeSpan.FromMinutes(1),
+        });
+
+        deleted.Should().BeTrue("the premise: the job's first candidate was gone when the round read its candidates");
+        acquired.Select(x => x.Key.Name).Should().Equal(["other-serial-1"],
+            "the job is executing on A, which its fired row says, and the other serial job is idle");
+        (await StateOf("serial-3")).Should().Be("WAITING", "a trigger of a job executing elsewhere is left where it was");
     }
 
     /// <summary>
@@ -663,6 +745,32 @@ public sealed class AcquisitionBehindExecutingJobSqliteTest
         (await command.ExecuteNonQueryAsync()).Should().Be(1);
     }
 
+    private static void AddParameter(DbCommand command, string name, object value)
+    {
+        DbParameter parameter = command.CreateParameter();
+        parameter.ParameterName = name;
+        parameter.Value = value;
+        command.Parameters.Add(parameter);
+    }
+
+    /// <summary>
+    /// A third node of the store on a delegate Quartz ships rather than a subclass of one, over a provider
+    /// the test can put its own writes through, inside the store's transaction. Torn down with the others.
+    /// </summary>
+    private async Task<LocalTransactionJobStore> StartShippedNode(string instanceId, CountingDbProvider provider, SQLiteDelegate driverDelegate)
+    {
+        LocalTransactionJobStore store = new(TestJobStores.Dependencies(
+            schedulerOptions: TestJobStores.SchedulerOptions(instanceName: SchedulerName, instanceId: instanceId),
+            storeOptions: TestJobStores.StoreOptions("acquisition-behind-executing-job-shipped"),
+            dbProvider: provider,
+            driverDelegate: driverDelegate));
+        shippedStore = store;
+
+        await store.Initialize(TestJobStores.Identity(instanceName: SchedulerName, instanceId: instanceId));
+        store.Clustered = true;
+        return store;
+    }
+
     private ServiceProvider BuildNode(string instanceId, bool provisionSchema)
     {
         ServiceCollection services = new();
@@ -670,7 +778,7 @@ public sealed class AcquisitionBehindExecutingJobSqliteTest
         {
             q.ConfigureScheduler(options =>
             {
-                options.InstanceName = "acquisition-behind-executing-job";
+                options.InstanceName = SchedulerName;
                 options.InstanceId = instanceId;
             });
 
