@@ -271,7 +271,7 @@ partial class Build
             "INT" => "Int32",
             "SMALLINT" => "Int16",
             "BIT" or "BOOL" or "BOOLEAN" => "Boolean",
-            "VARBINARY(MAX)" or "BYTEA" or "BLOB" => "Binary",
+            "VARBINARY(MAX)" or "BYTEA" or "BLOB" or "MEDIUMBLOB" => "Binary",
             _ when upper.StartsWith("NUMERIC", StringComparison.Ordinal) => "Decimal",
             _ => throw new InvalidOperationException($"{DialectLabel[ef.Dialect]} type '{type}' has no CLR type in the Entity Framework Core rendering yet"),
         };

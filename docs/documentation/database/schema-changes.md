@@ -818,6 +818,9 @@ One optional script: only a store configured with `UseExecutionHistory()` needs 
   table and the script. No other store probes for it.
 - It creates a table and alters nothing, so it runs in any order beside 4.9's other scripts.
 
+On MySQL, a fresh install also declares the binary columns `MEDIUMBLOB`. An existing database keeps `BLOB`
+unless you [widen it](#wider-binary-columns-on-mysql).
+
 ### The trigger status table
 
 `QRTZ_TRIGGER_STATUS` holds one row per trigger, keyed by `(SCHED_NAME, TRIGGER_GROUP, TRIGGER_NAME)`, with
@@ -837,6 +840,37 @@ Run the script at any time. A 4.8 node never touches the table, so the trigger r
 4.8 node's success does not clear its failing count.
 
 A fresh install from `database/tables/`, and `ProvisionSchema()`, create it.
+
+### Wider binary columns on MySQL
+
+Optional, and only on MySQL. Widen the columns if a serialized `JobDataMap` or calendar can exceed 65,535
+bytes, the most a `BLOB` holds. Otherwise MySQL refuses it with `Data too long for column 'JOB_DATA'`.
+
+| Column | Before 4.9 | Fresh install from 4.9 |
+|---|---|---|
+| `QRTZ_JOB_DETAILS.JOB_DATA`, `QRTZ_TRIGGERS.JOB_DATA`, `QRTZ_BLOB_TRIGGERS.BLOB_DATA` | `BLOB NULL` | `MEDIUMBLOB NULL` (16 MB) |
+| `QRTZ_CALENDARS.CALENDAR` | `BLOB NOT NULL` | `MEDIUMBLOB NOT NULL` (16 MB) |
+
+No migration script widens them. Run the statements you need yourself, with your table prefix:
+
+```sql
+ALTER TABLE QRTZ_JOB_DETAILS MODIFY JOB_DATA MEDIUMBLOB NULL;
+ALTER TABLE QRTZ_TRIGGERS MODIFY JOB_DATA MEDIUMBLOB NULL;
+ALTER TABLE QRTZ_BLOB_TRIGGERS MODIFY BLOB_DATA MEDIUMBLOB NULL;
+ALTER TABLE QRTZ_CALENDARS MODIFY CALENDAR MEDIUMBLOB NOT NULL;
+```
+
+::: warning
+Each statement copies its table and blocks writes to it while it runs
+([online DDL, column operations](https://dev.mysql.com/doc/refman/8.4/en/innodb-online-ddl-operations.html#online-ddl-column-operations)).
+On `QRTZ_TRIGGERS` that stalls every node's firing. Run them in a maintenance window.
+:::
+
+- The job store reads and writes both types the same way, on 3.x and 4.x, so for the store itself the statements are safe at any version.
+- With Quartz.Weasel.MySQL, widen only once every node runs 4.9 or later: an earlier node's startup apply narrows the column back.
+- The startup schema check, Quartz.Weasel.MySQL and `MoveQuartzTablesFromAppAny` accept `BLOB` on these columns.
+  None of them widens a column. Quartz.Weasel.MySQL also leaves a hand-widened `LONGBLOB` alone.
+- Keep a large map small where you can: see [What does not belong in job data](../quartz-4.x/tutorial/job-data-map.md#what-does-not-belong-in-job-data).
 
 ## See also
 

@@ -300,7 +300,7 @@ partial class Build
         {
             "BOOLEAN" => "TINYINT(1)",
             "INTEGER" or "INT" => "INT",
-            "BIGINT" or "SMALLINT" or "BLOB" or "LONGTEXT" => upper,
+            "BIGINT" or "SMALLINT" or "BLOB" or "MEDIUMBLOB" or "LONGTEXT" => upper,
             _ when upper.StartsWith("VARCHAR(", StringComparison.Ordinal) => upper,
             _ when upper.StartsWith("NUMERIC(", StringComparison.Ordinal) => "DECIMAL" + upper["NUMERIC".Length..],
             _ => throw new InvalidOperationException($"MySQL type '{type}' has no catalog spelling in the Weasel rendering yet"),

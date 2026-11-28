@@ -102,6 +102,28 @@ public sealed class MySqlWeaselSchemaTest
     }
 
     /// <summary>
+    /// An operator who widened a binary column to <c>LONGBLOB</c> by hand keeps it: Weasel reads it as the
+    /// <c>MEDIUMBLOB</c> the model declares, so an apply never narrows it.
+    /// </summary>
+    [Test]
+    public async Task AHandWidenedLongBlobColumnIsLeftAlone()
+    {
+        await database.RunRepositoryScriptAsync("database", "tables", "tables_mysql_innodb.sql");
+        await database.ExecuteAsync("ALTER TABLE QRTZ_JOB_DETAILS MODIFY JOB_DATA LONGBLOB NULL;");
+
+        (ServiceProvider services, IDatabase weasel) = await database.WeaselAsync("weasel-my-longblob");
+        await using (services)
+        {
+            SchemaMigration migration = await weasel.CreateMigrationAsync();
+            migration.Difference.Should().Be(SchemaPatchDifference.None, "a LONGBLOB holds all a MEDIUMBLOB does: " + Describe(migration));
+            (await weasel.ApplyAllConfiguredChangesToDatabaseAsync()).Should().Be(SchemaPatchDifference.None);
+        }
+
+        (await database.ScalarAsync("SELECT DATA_TYPE FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'QRTZ_JOB_DETAILS' AND COLUMN_NAME = 'JOB_DATA'"))
+            .Should().Be("longblob");
+    }
+
+    /// <summary>
     /// Weasel's own MySQL default schema is the literal <c>public</c>; the tables go where the store's SQL
     /// looks for them — the connection's database, or the one the table prefix names.
     /// </summary>
@@ -476,10 +498,30 @@ public sealed class MySqlWeaselSchemaTest
         (SchemaSnapshot actualSchema, List<string> actualDetails) = await actual.ReadAsync();
         (SchemaSnapshot expectedSchema, List<string> expectedDetails) = await expected.ReadAsync();
 
+        // An upgraded database keeps BLOB where a fresh install has MEDIUMBLOB: Weasel never widens a column.
+        actualSchema = actualSchema.WithBlobsAsMediumBlobs("mysql_innodb");
+        actualDetails = [.. actualDetails.Select(WithBlobAsMediumBlob)];
+
         actualSchema.Tables.Should().BeEquivalentTo(expectedSchema.Tables, because);
         actualSchema.Columns.Should().BeEquivalentTo(expectedSchema.Columns, because);
         actualSchema.Indexes.Should().BeEquivalentTo(expectedSchema.Indexes, because);
         actualDetails.Should().BeEquivalentTo(expectedDetails, because);
+    }
+
+    /// <summary>
+    /// A column detail row, <c>COL|table|column|type|nullable|default</c>, with a <c>blob</c> a fresh install
+    /// declares <c>mediumblob</c> read as <c>mediumblob</c>.
+    /// </summary>
+    private static string WithBlobAsMediumBlob(string detail)
+    {
+        string[] cells = detail.Split('|');
+        bool isMediumBlobColumn = cells.Length == 6
+                                  && cells[0] == "COL"
+                                  && cells[3] == "blob"
+                                  && cells[1].StartsWith("QRTZ_", StringComparison.Ordinal)
+                                  && SchemaSnapshot.MySqlMediumBlobColumns.Contains(cells[1]["QRTZ_".Length..] + "|" + cells[2]);
+
+        return isMediumBlobColumn ? string.Join("|", cells[0], cells[1], cells[2], "mediumblob", cells[4], cells[5]) : detail;
     }
 
     private static Task SeedAsync(MySqlWeaselDatabase database) => database.ExecuteAsync("""

@@ -533,7 +533,7 @@ public class MigrationScriptTest
     internal static async Task AssertSchemaMatchesAsync(DbConnection connection, string dialect, string prefix)
     {
         SchemaSnapshot fresh = await SchemaSnapshot.ReadAsync(connection, dialect, FreshPrefix);
-        SchemaSnapshot migrated = await SchemaSnapshot.ReadAsync(connection, dialect, prefix);
+        SchemaSnapshot migrated = (await SchemaSnapshot.ReadAsync(connection, dialect, prefix)).WithBlobsAsMediumBlobs(dialect);
 
         fresh.Tables.Should().NotBeEmpty("the fresh install schema must exist for the comparison to mean anything");
 
