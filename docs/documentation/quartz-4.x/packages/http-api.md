@@ -875,9 +875,9 @@ Which history a route reads follows the [dashboard's rule](dashboard.md#executio
 
 To keep history elsewhere, register your own `IExecutionHistoryStore` before `AddQuartzHttpApi()`. The shipped
 registration is a `TryAdd`, and `UseExecutionHistory()` replaces only the in-memory default. A dashboard in the
-same process reads the same store. A read your store throws `NotSupportedException` from is answered `501` on
-every history route, naming `NotSupportedException`, with the store's message as `detail`;
-`HttpExecutionHistoryStore` raises it again as that.
+same process reads the same store. When your store throws `NotSupportedException` from a read, every history
+route answers `501` naming `NotSupportedException`, with the store's message as `detail`.
+`HttpExecutionHistoryStore` raises it again as `NotSupportedException`.
 
 ### Run statistics
 
