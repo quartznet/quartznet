@@ -73,7 +73,7 @@ public sealed class MySqlLargeJobDataTest
 
     private static ValueTask<IScheduler> CreateScheduler()
     {
-        string? connectionString = Environment.GetEnvironmentVariable("MYSQL_CONNECTION_STRING");
+        string connectionString = Environment.GetEnvironmentVariable("MYSQL_CONNECTION_STRING");
         connectionString.Should().NotBeNullOrWhiteSpace("the db-mysql leg's container publishes it");
 
         return QuartzSchedulerBuilder
@@ -86,7 +86,7 @@ public sealed class MySqlLargeJobDataTest
                 .UseDefaultThreadPool()
                 .UsePersistentStore(store =>
                 {
-                    store.UseMySqlConnector(connectionString!);
+                    store.UseMySqlConnector(connectionString);
                     store.UseNewtonsoftJsonSerializer();
                 }))
             .BuildScheduler();

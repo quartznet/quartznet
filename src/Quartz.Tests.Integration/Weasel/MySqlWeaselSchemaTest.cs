@@ -102,6 +102,28 @@ public sealed class MySqlWeaselSchemaTest
     }
 
     /// <summary>
+    /// An operator who widened a binary column to <c>LONGBLOB</c> by hand keeps it: Weasel reads it as the
+    /// <c>MEDIUMBLOB</c> the model declares, so an apply never narrows it.
+    /// </summary>
+    [Test]
+    public async Task AHandWidenedLongBlobColumnIsLeftAlone()
+    {
+        await database.RunRepositoryScriptAsync("database", "tables", "tables_mysql_innodb.sql");
+        await database.ExecuteAsync("ALTER TABLE QRTZ_JOB_DETAILS MODIFY JOB_DATA LONGBLOB NULL;");
+
+        (ServiceProvider services, IDatabase weasel) = await database.WeaselAsync("weasel-my-longblob");
+        await using (services)
+        {
+            SchemaMigration migration = await weasel.CreateMigrationAsync();
+            migration.Difference.Should().Be(SchemaPatchDifference.None, "a LONGBLOB holds all a MEDIUMBLOB does: " + Describe(migration));
+            (await weasel.ApplyAllConfiguredChangesToDatabaseAsync()).Should().Be(SchemaPatchDifference.None);
+        }
+
+        (await database.ScalarAsync("SELECT DATA_TYPE FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'QRTZ_JOB_DETAILS' AND COLUMN_NAME = 'JOB_DATA'"))
+            .Should().Be("longblob");
+    }
+
+    /// <summary>
     /// Weasel's own MySQL default schema is the literal <c>public</c>; the tables go where the store's SQL
     /// looks for them — the connection's database, or the one the table prefix names.
     /// </summary>
