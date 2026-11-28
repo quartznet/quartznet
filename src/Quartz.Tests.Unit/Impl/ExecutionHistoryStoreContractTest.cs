@@ -111,7 +111,13 @@ public abstract partial class ExecutionHistoryStoreContractTest
             FiredAtUtc: Start.AddMinutes(-3),
             Duration: TimeSpan.FromMilliseconds(1234.5678),
             Succeeded: false,
-            ExceptionMessage: "the report source refused the connection"));
+            ExceptionMessage: "the report source refused the connection") with
+        {
+            DueTimeUtc = Start.AddMinutes(-5),
+            StartDelay = TimeSpan.FromSeconds(2),
+            Origin = FiringOrigin.Backfill,
+            ExceptionType = typeof(InvalidOperationException).FullName
+        });
 
         ExecutionHistoryEntry entry = (await Executions(store)).Items.Should().ContainSingle().Subject;
 
@@ -128,6 +134,66 @@ public abstract partial class ExecutionHistoryStoreContractTest
         entry.Duration.Should().Be(TimeSpan.FromMilliseconds(1234.5678),
             "a job's run time is whatever the clock measured, and a store that rounded it would report "
             + "a duration nobody observed");
+        entry.DueTimeUtc.Should().Be(Start.AddMinutes(-5),
+            "the run was due two minutes before it fired, and the row says so");
+        entry.StartDelay.Should().Be(TimeSpan.FromSeconds(2),
+            "how late the run started is measured in ticks, and a store that rounded it would report a delay nobody observed");
+        entry.Origin.Should().Be(FiringOrigin.Backfill, "the run filled a slot the schedule had");
+        entry.ExceptionType.Should().Be(typeof(InvalidOperationException).FullName,
+            "the type of what the job threw is what failures group by");
+    }
+
+    [Test]
+    public async Task ExecutionsCanBeNarrowedByOriginAndByExceptionType()
+    {
+        IExecutionHistoryStore store = await CreateStore();
+
+        await store.AddExecution(Execution(Start, "scheduled") with
+        {
+            DueTimeUtc = Start.AddMinutes(-1),
+            StartDelay = TimeSpan.FromSeconds(2),
+            Origin = FiringOrigin.Schedule
+        });
+        await store.AddExecution(Execution(Start.AddMinutes(-1), "manual") with
+        {
+            DueTimeUtc = Start.AddMinutes(-1),
+            StartDelay = TimeSpan.FromMilliseconds(50),
+            Origin = FiringOrigin.Manual
+        });
+        await store.AddExecution(Execution(Start.AddMinutes(-2), "failed") with
+        {
+            Succeeded = false,
+            ExceptionMessage = "the upstream system is down",
+            ExceptionType = typeof(InvalidOperationException).FullName,
+            Origin = FiringOrigin.Schedule
+        });
+
+        (await store.QueryExecutions(new ExecutionHistoryQuery
+        {
+            SchedulerName = SchedulerName,
+            Origin = FiringOrigin.Manual
+        })).Items.Should().ContainSingle().Which.JobName.Should().Be("manual",
+            "a manual run is the one an operator asked for, and nothing else is");
+
+        (await store.QueryExecutions(new ExecutionHistoryQuery
+        {
+            SchedulerName = SchedulerName,
+            Origin = FiringOrigin.Schedule
+        })).Items.Select(entry => entry.JobName).Should().Equal(["scheduled", "failed"],
+            "the scheduled runs are the ones the schedule fired, newest first");
+
+        (await store.QueryExecutions(new ExecutionHistoryQuery
+        {
+            SchedulerName = SchedulerName,
+            ExceptionType = typeof(InvalidOperationException).FullName
+        })).Items.Should().ContainSingle().Which.JobName.Should().Be("failed",
+            "failures group by the type of what the job threw");
+
+        (await store.QueryExecutions(new ExecutionHistoryQuery
+        {
+            SchedulerName = SchedulerName,
+            ExceptionType = typeof(IOException).FullName
+        })).Items.Should().BeEmpty("an exception type nobody threw matches nothing");
     }
 
     [Test]

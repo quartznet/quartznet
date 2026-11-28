@@ -734,12 +734,13 @@ the last refresh time in the header so a stalled page is visible.
 
 ### Execution History
 
-`/quartz/history`: one row per execution with the node that ran it, a node filter, a window, four stat cards whose
-titles name their scope, a chart of runs over time, and a misfires section. Details under
-[Execution history and misfires](#execution-history-and-misfires).
+`/quartz/history`: one row per execution with the node that ran it, how late it started, a node filter, a
+window, four stat cards whose titles name their scope, a chart of runs over time, and a misfires section.
+Details under [Execution history and misfires](#execution-history-and-misfires).
 
 Each row's fire time links to `/quartz/history/{EntryId}`, the execution's own page: job, trigger, node, fire
-time, duration, result, summary, whether it was run by hand, attempt, what it threw, the fire instance id, a
+time, when it was due, duration, how late it started, result, summary, whether it was run by hand, why it
+ran, attempt, its exception — the type, then what it said — the fire instance id, a
 table of its metrics, and the lines it logged when the scheduler
 [captures them](../how-tos/progress-and-execution-logs.md#keep-a-job-s-log-lines). It only reads, so read-only
 mode leaves it unchanged.
@@ -1444,19 +1445,24 @@ exception. There is no `MapQuartzDashboard(blazor, pattern)` overload.
 ## Execution history and misfires
 
 `AddQuartzDashboard()` calls `AddQuartzExecutionHistory()`, so the **History** page at `/quartz/history` fills
-without further setup. Each row: job, trigger, node, fire time, duration, result, the job's summary and metrics,
-and the error if any.
+without further setup. Each row: job, trigger, node, fire time, duration, how late it started, result, the
+job's summary and metrics, and the error if any.
 
 - **Result**: *Succeeded*, *Skipped*, *Failed*, *Failed (retrying)* or *Cancelled*; a *Manual* badge on a run
-  asked for with *Trigger now*. A row written before 4.4 shows *Succeeded* or *Failed*. See
-  [Job Outcomes](../how-tos/job-outcomes.md).
+  asked for with *Trigger now*, and a *Backfill* badge on a run that filled a slot the schedule had. A row
+  written before 4.4 shows *Succeeded* or *Failed*. See [Job Outcomes](../how-tos/job-outcomes.md).
+- **Late**: how late the run started, from when the attempt was due until the job was called. Blank when under
+  a second, and a dash on a row written before 4.9.
+- **Error**: the short name of the type of what the job threw, with the full type and the message in the title;
+  the message alone on a row written before 4.9.
 - **Stat cards** over every run the filters and the window match: runs, success rate, failed, longest run. A
   source that cannot count runs over time shows the page's success rate, failures, average and P95 duration,
   titled *(page)*.
 - **The chart**, from 4.4: runs per bucket stacked by result, and beneath it the median and 95th percentile
   duration. It follows every filter and the window. Hover a column for its figures; *Show as a table* lists
   them. See [Run statistics](#run-statistics).
-- **Filters**: window, job, trigger, node, outcome and, from 4.4, results and one job exactly.
+- **Filters**: window, job, trigger, node, outcome and, from 4.4, results and one job exactly, and, from 4.9,
+  origin and exception type.
 - **The node filter** narrows to one machine, and the stat card titles then say so, so one node's success rate
   is not read as the fleet's.
 - **The outcome filter** handles retries. A job with a retry policy of three writes four failed rows for one bad
@@ -1464,6 +1470,11 @@ and the error if any.
   occurrences that gave up.
 - **The results filter** lists the ticked results; none ticked lists every result. A scheduler in another
   process whose host is older than 4.4 cannot filter by result or by one job, and the page says so.
+- **The origin filter**, from 4.9, lists the runs of one origin: scheduled, manual or backfill. **The
+  exception-type filter** lists the failures of one exception type, matched exactly by its full name. With
+  either applied the stat cards count the rows on the page, as they do for a source that cannot count at all,
+  because the run statistics know no origin or exception type. A scheduler in another process whose host is
+  older than 4.9 cannot filter by either, and the page says so.
 - **Run again**, on those failed rows, fires the job through `IScheduler.TriggerJob`. It is logged in the
   [action log](#action-log) and hidden in [read-only](#read-only-mode) mode. A row that will be retried has no
   button. The toast says which input it used:
@@ -1496,6 +1507,8 @@ Every filter is a query parameter, so a narrowed view is a link:
 | Node | `node` |
 | Failed after retries | `outcome=failed` |
 | Results | `result=failed,cancelled` |
+| Origin | `origin=schedule`, `manual` or `backfill`. From 4.9 |
+| Exception type | `exceptionType=System.InvalidOperationException`. From 4.9 |
 | One job exactly | `jobGroup` and `jobName`, which the Job Detail page's *View execution history* link writes |
 | One trigger exactly | `triggerGroup` and `triggerName`, which the Trigger Detail page's *View execution history* and Currently Executing's *Past runs* write. From 4.6 |
 | Window | `window=1h`, `24h`, `7d` or `30d`; absent is all retained |

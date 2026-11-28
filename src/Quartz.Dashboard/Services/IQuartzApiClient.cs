@@ -1388,6 +1388,17 @@ public sealed record DashboardHistoryQuery : PagedQuery
     /// or every result when null. An empty set lists nothing. Added in 4.4.
     /// </summary>
     public IReadOnlyCollection<JobRunResult>? Results { get; init; }
+
+    /// <summary>
+    /// Lists only the executions that ran for this reason, or every origin when null. Added in 4.9.
+    /// </summary>
+    public FiringOrigin? Origin { get; init; }
+
+    /// <summary>
+    /// Lists only the executions that failed with this exception type, matched exactly by its full name,
+    /// or every failure when null. Added in 4.9.
+    /// </summary>
+    public string? ExceptionType { get; init; }
 }
 
 /// <summary>

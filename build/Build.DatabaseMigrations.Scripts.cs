@@ -490,6 +490,9 @@ partial class Build
 
             // --- 4.9: each trigger's rollup, beside each job's, which only UseExecutionHistory() needs ---
             files.Add(($"4.9/add_trigger_status_{d}.sql", Build49TriggerStatusScript(d)));
+
+            // --- 4.9: when a run was due, how late it started and why it ran, which only UseExecutionHistory() needs ---
+            files.Add(($"4.9/add_execution_due_delay_origin_{d}.sql", Build49ExecutionHistoryScript(d)));
         }
 
         return files;
@@ -546,6 +549,63 @@ partial class Build
 
         return header
             + "\n\n" + CreateTable(dialect, TableTriggerStatus, HistoryTableBody(dialect, TableTriggerStatus));
+    }
+
+    /// <summary>
+    /// When a run was due, how late it started and why it ran, on the optional history table (#4333).
+    /// </summary>
+    /// <remarks>
+    /// The columns are whatever the model marks as 4.9's, rather than a list written out a second time
+    /// here, so the migrated table is the one a fresh install creates — as the 4.4 script reads its own.
+    /// </remarks>
+    static string Build49ExecutionHistoryScript(string dialect)
+    {
+        const string version = "4.9";
+
+        (string Table, SchemaColumn Column)[] columns =
+        [
+            .. ExecutionHistoryTables.SelectMany(t => t.Columns
+                .Where(c => c.AddedBy == version)
+                .Select(c => ("QRTZ_" + t.Name, c))),
+        ];
+
+        List<string> extra =
+        [
+            "On QRTZ_EXECUTION_HISTORY, when a run was due, how late it started and why it ran:",
+            "  DUE_TIME        when the run was due: the occurrence it serves, so a backfill is due",
+            "                  when its slot was, and a retry when its occurrence was",
+            "  START_DELAY     how late the run's job started, in ticks: from when the attempt was due",
+            "                  until the job was called, the same number",
+            "                  quartz.job.execution.start_delay records",
+            "  ORIGIN          why it ran, the integer of FiringOrigin: 0 schedule, 1 manual, 2 backfill",
+            "  EXCEPTION_TYPE  the full name of the type of what the job threw, cut to 200 characters",
+            "All four are nullable with no default. A row a 4.8 node wrote leaves them NULL, and the",
+            "History page shows a dash for a due time and a delay it does not have, no badge for an",
+            "origin it does not have, and the message alone for a failure whose type it does not have.",
+        ];
+
+        string header = Header(dialect, "add the execution due time, start delay, origin and exception type columns", "4.9.0", "#4333",
+            [
+                "4.9  OPTIONAL, and only for a database that has QRTZ_EXECUTION_HISTORY -- one that",
+                $"     ran ../4.2/add_execution_history_{dialect}.sql or was created by 4.2 or later.",
+                "     A store configured with UsePersistentStore(s => s.UseExecutionHistory()) writes",
+                "     these columns with every history row, so it refuses to start without them. No",
+                "     other scheduler reads the table.",
+                "",
+                "     Do NOT run it against a database without QRTZ_EXECUTION_HISTORY: the first",
+                "     statement alters that table, and fails when the table is not there.",
+                "",
+                "     Safe under a mixed cluster: a 4.8 node's history rows name their own columns and",
+                "     leave these NULL, and a 4.8 node never reads them.",
+                "",
+                "3.x  Not applicable.",
+            ],
+            extra,
+            sqliteNotIdempotent: true);
+
+        return header + "\n\n"
+               + string.Join("\n\n", columns.Select(
+                   c => AddColumn(dialect, c.Table, c.Column.Name, ModelColumn(dialect, c.Table, c.Column.Name))));
     }
 
     /// <summary>

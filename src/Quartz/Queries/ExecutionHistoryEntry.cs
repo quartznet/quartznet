@@ -146,6 +146,49 @@ public sealed record ExecutionHistoryEntry(
     public bool Manual { get; init; }
 
     /// <summary>
+    /// When the run was due: the occurrence it serves, or <see langword="null" /> on a row written
+    /// before 4.9.
+    /// </summary>
+    /// <remarks>
+    /// The occurrence, not the attempt: a retry is due when its occurrence was, and a backfill when its
+    /// slot was. The lateness is <see cref="StartDelay" />, measured from when the attempt itself was
+    /// due, so the two are not fired-minus-due on a retry or a backfill.
+    /// </remarks>
+    public DateTimeOffset? DueTimeUtc { get; init; }
+
+    /// <summary>
+    /// How late the run's job started, as the run shell measured it: from when the attempt was due
+    /// until the job was called, never below zero; or <see langword="null" /> on a row written before
+    /// 4.9, or on one whose firing never ran through the run shell.
+    /// </summary>
+    /// <remarks>
+    /// The same number <c>quartz.job.execution.start_delay</c> records, measured at the same point and
+    /// from the same due time, so the history and the histogram agree.
+    /// </remarks>
+    public TimeSpan? StartDelay { get; init; }
+
+    /// <summary>
+    /// Why the run ran: on its trigger's schedule, because somebody asked for it, or as a backfill of a
+    /// slot the schedule had; or <see langword="null" /> on a row written before 4.9.
+    /// </summary>
+    /// <remarks>
+    /// Read from <see cref="JobExecutionContextOccurrenceExtensions.GetOccurrence" />, which is what
+    /// tells a backfill from a scheduled run. <see cref="Manual" /> stays beside it, for compatibility.
+    /// </remarks>
+    public FiringOrigin? Origin { get; init; }
+
+    /// <summary>
+    /// The full name of the type of what the job threw, or <see langword="null" /> when it did not
+    /// throw, or on a row written before 4.9.
+    /// </summary>
+    /// <remarks>
+    /// The type alone, never the stack trace: every <c>View</c> role reads the history. What groups
+    /// failures by cause, where <see cref="ExceptionMessage" /> alone cannot tell a
+    /// <c>TimeoutException</c> from an <c>HttpRequestException</c> that says a similar thing.
+    /// </remarks>
+    public string? ExceptionType { get; init; }
+
+    /// <summary>
     /// The firing's <see cref="IJobExecutionContext.FireInstanceId" />, which links the row to the
     /// firing's span and log scope; or <see langword="null" /> on a row written before 4.4.
     /// </summary>

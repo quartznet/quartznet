@@ -237,6 +237,10 @@ CREATE TABLE qrtz_execution_history
     fire_instance_id TEXT NULL,
     job_input TEXT NULL,
     job_input_too_large BOOL NULL,
+    due_time BIGINT NULL,
+    start_delay BIGINT NULL,
+    origin INTEGER NULL,
+    exception_type TEXT NULL,
     PRIMARY KEY (sched_name, entry_id)
 );
 

@@ -129,6 +129,23 @@ public sealed record DashboardHistoryEntry(
 
     /// <inheritdoc cref="ExecutionHistoryEntry.InputTooLarge" />
     public bool InputTooLarge { get; init; }
+
+    // The four members added in 4.9 are ExecutionHistoryEntry's, carried over, and read the same: each
+    // inherits its documentation from there. Non-positional init properties, so the record's
+    // constructor is unchanged. When the run was due, how late it started, why it ran, and what type
+    // of exception it threw.
+
+    /// <inheritdoc cref="ExecutionHistoryEntry.DueTimeUtc" />
+    public DateTimeOffset? DueTimeUtc { get; init; }
+
+    /// <inheritdoc cref="ExecutionHistoryEntry.StartDelay" />
+    public TimeSpan? StartDelay { get; init; }
+
+    /// <inheritdoc cref="ExecutionHistoryEntry.Origin" />
+    public FiringOrigin? Origin { get; init; }
+
+    /// <inheritdoc cref="ExecutionHistoryEntry.ExceptionType" />
+    public string? ExceptionType { get; init; }
 }
 
 /// <summary>

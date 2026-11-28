@@ -118,6 +118,31 @@ internal sealed record ExecutionHistoryEntryDto(
     /// </summary>
     public bool InputTooLarge { get; init; }
 
+    /// <summary>
+    /// When the run was due: the occurrence it serves, or <see langword="null" /> on a row written
+    /// before 4.9.
+    /// </summary>
+    /// <remarks>
+    /// Non-positional, as the members above are: a 4.8 host sends none, and a 4.8 reader skips it.
+    /// </remarks>
+    public DateTimeOffset? DueTimeUtc { get; init; }
+
+    /// <summary>
+    /// How late the run's job started, or <see langword="null" /> on a row written before 4.9.
+    /// </summary>
+    public TimeSpan? StartDelay { get; init; }
+
+    /// <summary>
+    /// Why the run ran, or <see langword="null" /> on a row written before 4.9.
+    /// </summary>
+    public FiringOrigin? Origin { get; init; }
+
+    /// <summary>
+    /// The full name of the type of what the job threw, or <see langword="null" /> when it did not
+    /// throw, or on a row written before 4.9.
+    /// </summary>
+    public string? ExceptionType { get; init; }
+
     /// <param name="entry">The row.</param>
     /// <param name="includeDetails">
     /// Whether the captured log and the recorded input go on the wire — the single-entry route's answer,
@@ -149,7 +174,11 @@ internal sealed record ExecutionHistoryEntryDto(
             Manual = entry.Manual,
             FireInstanceId = entry.FireInstanceId,
             Input = includeDetails ? entry.Input : null,
-            InputTooLarge = entry.InputTooLarge
+            InputTooLarge = entry.InputTooLarge,
+            DueTimeUtc = entry.DueTimeUtc,
+            StartDelay = entry.StartDelay,
+            Origin = entry.Origin,
+            ExceptionType = entry.ExceptionType
         };
     }
 
@@ -206,7 +235,11 @@ internal sealed record ExecutionHistoryEntryDto(
             Manual = Manual,
             FireInstanceId = FireInstanceId,
             Input = Input,
-            InputTooLarge = InputTooLarge
+            InputTooLarge = InputTooLarge,
+            DueTimeUtc = DueTimeUtc,
+            StartDelay = StartDelay,
+            Origin = Origin,
+            ExceptionType = ExceptionType
         };
     }
 }

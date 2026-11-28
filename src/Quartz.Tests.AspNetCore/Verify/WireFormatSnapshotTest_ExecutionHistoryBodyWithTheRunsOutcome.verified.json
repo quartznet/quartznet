@@ -23,7 +23,11 @@
       "manual": true,
       "fireInstanceId": "TEST_NON_CLUSTERED-17",
       "input": null,
-      "inputTooLarge": false
+      "inputTooLarge": false,
+      "dueTimeUtc": null,
+      "startDelay": null,
+      "origin": null,
+      "exceptionType": null
     }
   ],
   "hasMore": false,

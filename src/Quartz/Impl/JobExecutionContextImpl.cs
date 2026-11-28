@@ -338,6 +338,31 @@ public sealed class JobExecutionContextImpl : IInterruptableJobExecutionContext,
         set => recordedRow = value;
     }
 
+    /// <summary>
+    /// How late the firing's job started, as the run shell measured it: from when this attempt was due
+    /// until the job was called, never below zero; or <see langword="null" /> when the firing never ran
+    /// through the run shell.
+    /// </summary>
+    /// <remarks>
+    /// The same number <c>quartz.job.execution.start_delay</c> records, measured at the same point and
+    /// from the same due time, so the history and the histogram agree. Measured on the first run only: a
+    /// refire runs the same firing again at once, and measured from the same due time it would report the
+    /// run before it as lateness.
+    /// </remarks>
+    internal TimeSpan? StartDelay { get; private set; }
+
+    /// <summary>
+    /// Records how late the firing's job started, as <see cref="StartDelay" />.
+    /// </summary>
+    /// <remarks>
+    /// <see cref="Core.JobRunShell" />'s to call, as <see cref="Settle" /> is: a job or a listener writing
+    /// it would be reporting a lateness the scheduler did not measure.
+    /// </remarks>
+    internal void RecordStartDelay(TimeSpan startDelay)
+    {
+        StartDelay = startDelay;
+    }
+
     /// <inheritdoc />
     /// <remarks>
     /// <para>

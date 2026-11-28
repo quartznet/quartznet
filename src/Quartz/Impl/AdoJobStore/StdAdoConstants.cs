@@ -1844,7 +1844,7 @@ internal static class StdAdoConstants
     // -----------------------------------------------------------------------------------------
 
     public static readonly string SqlInsertExecutionHistory =
-        Invariant($"INSERT INTO {TablePrefixSubst}{AdoConstants.TableExecutionHistory} ({AdoConstants.ColumnSchedulerName}, {AdoConstants.ColumnEntryId}, {AdoConstants.ColumnInstanceName}, {AdoConstants.ColumnJobName}, {AdoConstants.ColumnJobGroup}, {AdoConstants.ColumnTriggerName}, {AdoConstants.ColumnTriggerGroup}, {AdoConstants.ColumnFiredTime}, {AdoConstants.ColumnRunTime}, {AdoConstants.ColumnSucceeded}, {AdoConstants.ColumnErrorMessage}, {AdoConstants.ColumnRetryAttempt}, {AdoConstants.ColumnRetryScheduled}, {AdoConstants.ColumnExecutionLog}, {AdoConstants.ColumnResult}, {AdoConstants.ColumnSummary}, {AdoConstants.ColumnMetrics}, {AdoConstants.ColumnManual}, {AdoConstants.ColumnFireInstanceId}, {AdoConstants.ColumnJobInput}, {AdoConstants.ColumnJobInputTooLarge}) VALUES (@{SqlParameters.SchedulerName}, @{SqlParameters.EntryId}, @{SqlParameters.InstanceName}, @{SqlParameters.JobName}, @{SqlParameters.JobGroup}, @{SqlParameters.TriggerName}, @{SqlParameters.TriggerGroup}, @{SqlParameters.FiredTime}, @{SqlParameters.RunTime}, @{SqlParameters.Succeeded}, @{SqlParameters.ErrorMessage}, @{SqlParameters.HistoryRetryAttempt}, @{SqlParameters.HistoryRetryScheduled}, @{SqlParameters.ExecutionLog}, @{SqlParameters.HistoryResult}, @{SqlParameters.HistorySummary}, @{SqlParameters.HistoryMetrics}, @{SqlParameters.HistoryManual}, @{SqlParameters.HistoryFireInstanceId}, @{SqlParameters.HistoryJobInput}, @{SqlParameters.HistoryJobInputTooLarge})");
+        Invariant($"INSERT INTO {TablePrefixSubst}{AdoConstants.TableExecutionHistory} ({AdoConstants.ColumnSchedulerName}, {AdoConstants.ColumnEntryId}, {AdoConstants.ColumnInstanceName}, {AdoConstants.ColumnJobName}, {AdoConstants.ColumnJobGroup}, {AdoConstants.ColumnTriggerName}, {AdoConstants.ColumnTriggerGroup}, {AdoConstants.ColumnFiredTime}, {AdoConstants.ColumnRunTime}, {AdoConstants.ColumnSucceeded}, {AdoConstants.ColumnErrorMessage}, {AdoConstants.ColumnRetryAttempt}, {AdoConstants.ColumnRetryScheduled}, {AdoConstants.ColumnExecutionLog}, {AdoConstants.ColumnResult}, {AdoConstants.ColumnSummary}, {AdoConstants.ColumnMetrics}, {AdoConstants.ColumnManual}, {AdoConstants.ColumnFireInstanceId}, {AdoConstants.ColumnJobInput}, {AdoConstants.ColumnJobInputTooLarge}, {AdoConstants.ColumnDueTime}, {AdoConstants.ColumnStartDelay}, {AdoConstants.ColumnOrigin}, {AdoConstants.ColumnExceptionType}) VALUES (@{SqlParameters.SchedulerName}, @{SqlParameters.EntryId}, @{SqlParameters.InstanceName}, @{SqlParameters.JobName}, @{SqlParameters.JobGroup}, @{SqlParameters.TriggerName}, @{SqlParameters.TriggerGroup}, @{SqlParameters.FiredTime}, @{SqlParameters.RunTime}, @{SqlParameters.Succeeded}, @{SqlParameters.ErrorMessage}, @{SqlParameters.HistoryRetryAttempt}, @{SqlParameters.HistoryRetryScheduled}, @{SqlParameters.ExecutionLog}, @{SqlParameters.HistoryResult}, @{SqlParameters.HistorySummary}, @{SqlParameters.HistoryMetrics}, @{SqlParameters.HistoryManual}, @{SqlParameters.HistoryFireInstanceId}, @{SqlParameters.HistoryJobInput}, @{SqlParameters.HistoryJobInputTooLarge}, @{SqlParameters.HistoryDueTime}, @{SqlParameters.HistoryStartDelay}, @{SqlParameters.HistoryOrigin}, @{SqlParameters.HistoryExceptionType})");
 
     public static readonly string SqlInsertMisfireHistory =
         Invariant($"INSERT INTO {TablePrefixSubst}{AdoConstants.TableMisfireHistory} ({AdoConstants.ColumnSchedulerName}, {AdoConstants.ColumnEntryId}, {AdoConstants.ColumnInstanceName}, {AdoConstants.ColumnTriggerName}, {AdoConstants.ColumnTriggerGroup}, {AdoConstants.ColumnJobName}, {AdoConstants.ColumnJobGroup}, {AdoConstants.ColumnMisfireTime}, {AdoConstants.ColumnScheduledTime}, {AdoConstants.ColumnMisfireReason}) VALUES (@{SqlParameters.SchedulerName}, @{SqlParameters.EntryId}, @{SqlParameters.InstanceName}, @{SqlParameters.TriggerName}, @{SqlParameters.TriggerGroup}, @{SqlParameters.JobName}, @{SqlParameters.JobGroup}, @{SqlParameters.MisfireTime}, @{SqlParameters.ScheduledTime}, @{SqlParameters.MisfireReason})");
@@ -1866,15 +1866,15 @@ internal static class StdAdoConstants
 
     /// <summary>
     /// The columns both history reads select. The first twelve are read by position, in this order; the
-    /// 4.4 outcome and input columns after them are found by name, so a statement that leaves them out
-    /// still reads.
+    /// 4.4 outcome and input columns and the 4.9 due-time, delay, origin and exception-type columns
+    /// after them are found by name, so a statement that leaves them out still reads.
     /// </summary>
     /// <remarks>
     /// A constant rather than a static field, because the two statements above are initialized before
     /// a field declared here would be.
     /// </remarks>
     private const string ExecutionHistoryColumns =
-        $"{AdoConstants.ColumnInstanceName}, {AdoConstants.ColumnJobName}, {AdoConstants.ColumnJobGroup}, {AdoConstants.ColumnTriggerName}, {AdoConstants.ColumnTriggerGroup}, {AdoConstants.ColumnFiredTime}, {AdoConstants.ColumnRunTime}, {AdoConstants.ColumnSucceeded}, {AdoConstants.ColumnErrorMessage}, {AdoConstants.ColumnRetryAttempt}, {AdoConstants.ColumnRetryScheduled}, {AdoConstants.ColumnEntryId}, {AdoConstants.ColumnResult}, {AdoConstants.ColumnSummary}, {AdoConstants.ColumnMetrics}, {AdoConstants.ColumnManual}, {AdoConstants.ColumnFireInstanceId}, {AdoConstants.ColumnJobInputTooLarge}";
+        $"{AdoConstants.ColumnInstanceName}, {AdoConstants.ColumnJobName}, {AdoConstants.ColumnJobGroup}, {AdoConstants.ColumnTriggerName}, {AdoConstants.ColumnTriggerGroup}, {AdoConstants.ColumnFiredTime}, {AdoConstants.ColumnRunTime}, {AdoConstants.ColumnSucceeded}, {AdoConstants.ColumnErrorMessage}, {AdoConstants.ColumnRetryAttempt}, {AdoConstants.ColumnRetryScheduled}, {AdoConstants.ColumnEntryId}, {AdoConstants.ColumnResult}, {AdoConstants.ColumnSummary}, {AdoConstants.ColumnMetrics}, {AdoConstants.ColumnManual}, {AdoConstants.ColumnFireInstanceId}, {AdoConstants.ColumnJobInputTooLarge}, {AdoConstants.ColumnDueTime}, {AdoConstants.ColumnStartDelay}, {AdoConstants.ColumnOrigin}, {AdoConstants.ColumnExceptionType}";
 
     public static readonly string SqlCountExecutionHistory =
         Invariant($"SELECT COUNT(*) FROM {TablePrefixSubst}{AdoConstants.TableExecutionHistory} WHERE {AdoConstants.ColumnSchedulerName} = @{SqlParameters.SchedulerName}");
@@ -1998,6 +1998,14 @@ internal static class StdAdoConstants
     /// <summary>One firing's executions, matched exactly: the read <c>IDX_QRTZ_EH_FIRE_INST</c> answers.</summary>
     public static readonly string SqlExecutionHistoryFireInstancePredicate =
         Invariant($" AND {AdoConstants.ColumnFireInstanceId} = @{SqlParameters.HistoryFireInstanceId}");
+
+    /// <summary>The executions that ran for one reason: a row a 4.8 node wrote carries none, and matches none.</summary>
+    public static readonly string SqlExecutionHistoryOriginPredicate =
+        Invariant($" AND {AdoConstants.ColumnOrigin} = @{SqlParameters.HistoryOrigin}");
+
+    /// <summary>The executions that failed with one exception type, matched exactly: a row a 4.8 node wrote carries none, and matches none.</summary>
+    public static readonly string SqlExecutionHistoryExceptionTypePredicate =
+        Invariant($" AND {AdoConstants.ColumnExceptionType} = @{SqlParameters.HistoryExceptionType}");
 
     /// <summary>The rows that fired at or after an instant.</summary>
     public static readonly string SqlExecutionHistoryFiredFrom =

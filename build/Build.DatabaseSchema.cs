@@ -393,6 +393,22 @@ partial class Build
                 // Whether the run had an input over the cap, which is then not kept, so that Run again
                 // says it has none rather than passing a cut one.
                 Flag("JOB_INPUT_TOO_LARGE", required: false) with { AddedBy = "4.4" },
+                // When the run was due, how late it started and why it ran. The due time is the
+                // occurrence, so a backfill is due when its slot was; the delay is the attempt's own
+                // lateness, in ticks like RUN_TIME; the origin is the integer of FiringOrigin; the
+                // exception type is the full name of what the job threw, cut to 200 characters. All
+                // four are nullable with no default: a row a 4.8 node wrote leaves them NULL, and the
+                // page shows a dash.
+                Timestamp("DUE_TIME", required: false) with { AddedBy = "4.9" },
+                Column("START_DELAY",
+                    sqlServer: "bigint NULL",
+                    postgres: "BIGINT NULL",
+                    mysql: "BIGINT NULL",
+                    oracle: "NUMBER(19) NULL",
+                    sqlite: "BIGINT NULL",
+                    firebird: "BIGINT DEFAULT NULL") with { AddedBy = "4.9" },
+                EnumColumn("ORIGIN", required: false) with { AddedBy = "4.9" },
+                Text("EXCEPTION_TYPE", 200, 200, required: false) with { AddedBy = "4.9" },
             ],
             OracleStem: "EXEC_HISTORY",
             AddedBy: "4.2"),

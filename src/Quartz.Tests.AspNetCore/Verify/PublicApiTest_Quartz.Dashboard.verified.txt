@@ -235,10 +235,12 @@ namespace Quartz.Dashboard.Services
     public sealed record DashboardHistoryEntry : System.IEquatable<Quartz.Dashboard.Services.DashboardHistoryEntry>
     {
         public DashboardHistoryEntry(string SchedulerName, string SchedulerInstanceId, string JobGroup, string JobName, string TriggerGroup, string TriggerName, System.DateTimeOffset FiredAtUtc, System.TimeSpan Duration, bool Succeeded, string? ExceptionMessage) { }
+        public System.DateTimeOffset? DueTimeUtc { get; init; }
         public System.TimeSpan Duration { get; init; }
         public Quartz.JobRunResult EffectiveResult { get; }
         public string? EntryId { get; init; }
         public string? ExceptionMessage { get; init; }
+        public string? ExceptionType { get; init; }
         public string? FireInstanceId { get; init; }
         public System.DateTimeOffset FiredAtUtc { get; init; }
         public string? Input { get; init; }
@@ -248,11 +250,13 @@ namespace Quartz.Dashboard.Services
         public string? Log { get; init; }
         public bool Manual { get; init; }
         public string? MetricsJson { get; init; }
+        public Quartz.FiringOrigin? Origin { get; init; }
         public Quartz.JobRunResult? Result { get; init; }
         public int RetryAttempt { get; init; }
         public bool RetryScheduled { get; init; }
         public string SchedulerInstanceId { get; init; }
         public string SchedulerName { get; init; }
+        public System.TimeSpan? StartDelay { get; init; }
         public bool Succeeded { get; init; }
         public string? Summary { get; init; }
         public string TriggerGroup { get; init; }
@@ -261,12 +265,14 @@ namespace Quartz.Dashboard.Services
     public sealed record DashboardHistoryQuery : Quartz.PagedQuery, System.IEquatable<Quartz.Dashboard.Services.DashboardHistoryQuery>
     {
         public DashboardHistoryQuery() { }
+        public string? ExceptionType { get; init; }
         public bool? FailedFinally { get; init; }
         public string? FireInstanceId { get; init; }
         public System.DateTimeOffset? FiredBefore { get; init; }
         public System.DateTimeOffset? FiredFrom { get; init; }
         public Quartz.Dashboard.Services.JobKeyDto? Job { get; init; }
         public string? JobFilter { get; init; }
+        public Quartz.FiringOrigin? Origin { get; init; }
         public System.Collections.Generic.IReadOnlyCollection<Quartz.JobRunResult>? Results { get; init; }
         public string? SchedulerInstanceId { get; init; }
         public required string SchedulerName { get; init; }

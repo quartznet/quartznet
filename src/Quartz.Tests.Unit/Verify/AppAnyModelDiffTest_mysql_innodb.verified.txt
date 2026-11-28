@@ -7,7 +7,10 @@ repaired: AppAny's schema has it wrong, and the move changes it
   CreateTable QRTZ_TRIGGER_STATUS
 
 converged: harmless, changed in place with no table rebuilt and no column narrowed
-  (none)
+  AddColumn QRTZ_EXECUTION_HISTORY.DUE_TIME bigint NULL
+  AddColumn QRTZ_EXECUTION_HISTORY.EXCEPTION_TYPE varchar(200) NULL
+  AddColumn QRTZ_EXECUTION_HISTORY.ORIGIN integer NULL
+  AddColumn QRTZ_EXECUTION_HISTORY.START_DELAY bigint NULL
 
 left: harmless, a spelling of the same type, or a change that would narrow a column or rebuild a table
   AddForeignKey FK_QRTZ_BLOB_TRIGGERS_QRTZ_TRIGGERS_SCHED_NAME_TRIGGER_NAME_TRI~ on QRTZ_BLOB_TRIGGERS (SCHED_NAME, TRIGGER_NAME, TRIGGER_GROUP) -> QRTZ_TRIGGERS (SCHED_NAME, TRIGGER_NAME, TRIGGER_GROUP) on delete NoAction

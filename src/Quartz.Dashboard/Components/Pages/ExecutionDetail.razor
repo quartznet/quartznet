@@ -64,12 +64,15 @@
                 <tr><th>Trigger</th><td><KeyBadge GroupName="@_entry.TriggerGroup" ItemName="@_entry.TriggerName" /></td></tr>
                 <tr><th>Node</th><td class="qz-table-cell-mono">@_entry.SchedulerInstanceId</td></tr>
                 <tr><th>Fired</th><td>@Scheduler.FormatInSelectedTimeZone(_entry.FiredAtUtc, "u")</td></tr>
+                <tr><th>Due</th><td data-testid="execution-due">@(_entry.DueTimeUtc is { } due ? Scheduler.FormatInSelectedTimeZone(due, "u") : "—")</td></tr>
                 <tr><th>Duration</th><td>@FormatDuration(_entry.Duration)</td></tr>
+                <tr><th>Started late by</th><td data-testid="execution-start-delay">@FormatStartDelay(_entry.StartDelay)</td></tr>
                 <tr><th>Result</th><td><StateIndicator State="@RunResultDisplay.Label(_entry)" /></td></tr>
                 <tr><th>Summary</th><td data-testid="execution-summary">@(string.IsNullOrEmpty(_entry.Summary) ? "—" : _entry.Summary)</td></tr>
                 <tr><th>Manual</th><td data-testid="execution-manual">@(_entry.Manual ? "Yes: asked for with Trigger now or TriggerJob" : "No: fired by its schedule")</td></tr>
+                <tr><th>Origin</th><td data-testid="execution-origin">@OriginLabel(_entry)</td></tr>
                 <tr><th>Attempt</th><td>@AttemptLabel(_entry)</td></tr>
-                <tr><th>Error</th><td>@(string.IsNullOrEmpty(_entry.ExceptionMessage) ? "—" : _entry.ExceptionMessage)</td></tr>
+                <tr><th>Exception</th><td data-testid="execution-exception">@ExceptionText(_entry)</td></tr>
                 <tr><th>Fire instance</th><td class="qz-table-cell-mono" data-testid="execution-fire-instance">@(string.IsNullOrEmpty(_entry.FireInstanceId) ? "—" : _entry.FireInstanceId)</td></tr>
                 <tr><th>Input</th><td data-testid="execution-input-state">@RunAgainInput.State(_entry)</td></tr>
             </tbody>
@@ -288,6 +291,47 @@
         return entry.RetryAttempt == 0
             ? "the regular fire"
             : "retry " + entry.RetryAttempt.ToString(CultureInfo.InvariantCulture);
+    }
+
+    /// <summary>
+    /// How late the run started: under a second reads as on time, and a row that does not say reads as a dash.
+    /// </summary>
+    private static string FormatStartDelay(TimeSpan? startDelay)
+    {
+        if (startDelay is not { } delay)
+        {
+            return "—";
+        }
+
+        return delay < TimeSpan.FromSeconds(1) ? "under a second" : FormatDuration(delay);
+    }
+
+    /// <summary>
+    /// Why the run ran, in the words the history page's filter uses; a row written before 4.9 does not say,
+    /// and falls back to the Manual flag it was written with.
+    /// </summary>
+    private static string OriginLabel(DashboardHistoryEntry entry)
+    {
+        return entry.Origin switch
+        {
+            FiringOrigin.Schedule => "Scheduled: fired by its schedule",
+            FiringOrigin.Manual => "Manual: asked for with Trigger now or TriggerJob",
+            FiringOrigin.Backfill => "Backfill: a slot the schedule had",
+            _ => entry.Manual ? "Manual: asked for with Trigger now or TriggerJob" : "—"
+        };
+    }
+
+    /// <summary>
+    /// The exception: its type, then its message; the message alone when the row carries no type.
+    /// </summary>
+    private static string ExceptionText(DashboardHistoryEntry entry)
+    {
+        if (string.IsNullOrEmpty(entry.ExceptionMessage))
+        {
+            return "—";
+        }
+
+        return entry.ExceptionType is { Length: > 0 } type ? type + ": " + entry.ExceptionMessage : entry.ExceptionMessage;
     }
 
     private static string FormatDuration(TimeSpan duration)

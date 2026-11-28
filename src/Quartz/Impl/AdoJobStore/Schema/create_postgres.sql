@@ -218,6 +218,10 @@ CREATE TABLE IF NOT EXISTS {0}execution_history (
   fire_instance_id text null,
   job_input text null,
   job_input_too_large bool null,
+  due_time bigint null,
+  start_delay bigint null,
+  origin integer null,
+  exception_type text null,
   primary key (sched_name,entry_id)
 );
 --;;

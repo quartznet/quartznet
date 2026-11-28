@@ -73,6 +73,11 @@ internal sealed class HttpExecutionHistoryStore : IExecutionHistoryStore
     private static readonly Version FirstExactLookupVersion = new(4, 6);
 
     /// <summary>
+    /// The first version whose executions route reads the origin and exception-type filters.
+    /// </summary>
+    private static readonly Version FirstOriginVersion = new(4, 9);
+
+    /// <summary>
     /// The most keys one status fetch may carry, as the host enforces it.
     /// </summary>
     private const int MaxKeysPerFetch = 1000;
@@ -190,9 +195,10 @@ internal sealed class HttpExecutionHistoryStore : IExecutionHistoryStore
     /// <remarks>
     /// <see cref="ExecutionHistoryQuery.Job" />, <see cref="ExecutionHistoryQuery.FiredFrom" />,
     /// <see cref="ExecutionHistoryQuery.FiredBefore" /> and <see cref="ExecutionHistoryQuery.Results" /> need
-    /// a host at 4.4 or later, and <see cref="ExecutionHistoryQuery.Trigger" /> and
-    /// <see cref="ExecutionHistoryQuery.FireInstanceId" /> one at 4.6 or later; each raises
-    /// <see cref="NotSupportedException" /> against an older one. An empty
+    /// a host at 4.4 or later, <see cref="ExecutionHistoryQuery.Trigger" /> and
+    /// <see cref="ExecutionHistoryQuery.FireInstanceId" /> one at 4.6 or later, and
+    /// <see cref="ExecutionHistoryQuery.Origin" /> and <see cref="ExecutionHistoryQuery.ExceptionType" />
+    /// one at 4.9 or later; each raises <see cref="NotSupportedException" /> against an older one. An empty
     /// <see cref="ExecutionHistoryQuery.Results" /> lists nothing, and is answered without asking.
     /// </remarks>
     public async ValueTask<PagedResult<ExecutionHistoryEntry>> QueryExecutions(ExecutionHistoryQuery query, CancellationToken cancellationToken = default)
@@ -209,6 +215,11 @@ internal sealed class HttpExecutionHistoryStore : IExecutionHistoryStore
         if (query.Job is not null || query.FiredFrom is not null || query.FiredBefore is not null || query.Results is not null)
         {
             await RequireFilters("job, fire time and result", cancellationToken).ConfigureAwait(false);
+        }
+
+        if (query.Origin is not null || !string.IsNullOrWhiteSpace(query.ExceptionType))
+        {
+            await RequireOriginFilters(cancellationToken).ConfigureAwait(false);
         }
 
         QueryStringBuilder parameters = new();
@@ -242,6 +253,18 @@ internal sealed class HttpExecutionHistoryStore : IExecutionHistoryStore
         foreach (JobRunResult wanted in query.Results ?? [])
         {
             parameters.Add("results", wanted.ToString());
+        }
+
+        // Sent only when the query asks a question, as the filters above are: a route that is not
+        // given the parameter lists everything, which is what a null filter means.
+        if (query.Origin is { } origin)
+        {
+            parameters.Add("origin", origin.ToString());
+        }
+
+        if (!string.IsNullOrWhiteSpace(query.ExceptionType))
+        {
+            parameters.Add("exceptionType", query.ExceptionType);
         }
 
         AddLookups(parameters, query.Trigger, query.FireInstanceId);
@@ -631,6 +654,20 @@ internal sealed class HttpExecutionHistoryStore : IExecutionHistoryStore
             FirstFilteringVersion,
             $"whose history routes ignore the {filters} filters and would answer with rows they exclude",
             "to filter its history by them",
+            cancellationToken);
+    }
+
+    /// <summary>
+    /// Refuses a read carrying a 4.9 filter before it is sent to a host that would ignore the filter.
+    /// </summary>
+    /// <param name="cancellationToken">The cancellation instruction.</param>
+    /// <exception cref="NotSupportedException">The host is older than 4.9.</exception>
+    private ValueTask RequireOriginFilters(CancellationToken cancellationToken)
+    {
+        return RequireHost(
+            FirstOriginVersion,
+            "whose history routes ignore the origin and exception type filters and would answer with rows they exclude",
+            "to filter its history by origin and exception type",
             cancellationToken);
     }
 

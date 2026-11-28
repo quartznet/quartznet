@@ -114,6 +114,7 @@ file whose suffix matches your database: `_sqlServer`, `_postgres`, `_mysql_inno
 | [`4.6`](migrations/4.6) | `add_execution_history_lookup_indexes_<db>.sql`: `IDX_QRTZ_EH_FIRE_INST` and `IDX_QRTZ_EH_TRIG_TIME` on `QRTZ_EXECUTION_HISTORY`, a firing's outcome and a trigger's history read by seek rather than scan (#4072) | **Optional**, performance only; changes nothing on a database without the history table, except on SQLite; safe under a mixed cluster | all | `main` only |
 | [`4.7`](migrations/4.7) | `add_trigger_fixed_delay_<db>.sql`: `FIXED_DELAY` on `QRTZ_TRIGGERS`, a simple trigger whose interval is measured from the previous run's completion (#4140) | **Required on 4.7+**, safe during a mixed 4.6/4.7 window; a 4.6 node ignores the column, so measure from completion only once every node is 4.7 | all | `main` only |
 | [`4.9`](migrations/4.9) | `add_trigger_status_<db>.sql`: the `QRTZ_TRIGGER_STATUS` table, each trigger's rollup of its own firings beside each job's (#4243) | **Optional**: needed only with `UseExecutionHistory()`; safe under a mixed cluster, since a 4.8 node never touches it | all | `main` only |
+| [`4.9`](migrations/4.9) | `add_execution_due_delay_origin_<db>.sql`: `DUE_TIME`, `START_DELAY`, `ORIGIN` and `EXCEPTION_TYPE` on `QRTZ_EXECUTION_HISTORY`, when a run was due, how late it started, why it ran and the type of what it threw (#4333) | **Optional**: needed only with `UseExecutionHistory()`; safe under a mixed cluster, since a 4.8 node writes its rows without them and never reads them | all | `main` only |
 
 ### Upgrading 3.x → 4.x is mandatory
 
@@ -279,12 +280,16 @@ them. Run it when you want a cluster-wide execution history, at any time, or nev
 | File | Status | What |
 |---|---|---|
 | `add_trigger_status_<db>.sql` | Optional | The `QRTZ_TRIGGER_STATUS` table: one row per trigger, with `QRTZ_JOB_STATUS`'s columns, folded from that trigger's own firings. Needed only with `UseExecutionHistory()`, which refuses to start without it. |
+| `add_execution_due_delay_origin_<db>.sql` | Optional | `DUE_TIME`, `START_DELAY`, `ORIGIN` and `EXCEPTION_TYPE` on `QRTZ_EXECUTION_HISTORY`: when a run was due, how late it started, why it ran and the type of what it threw. Needed only with `UseExecutionHistory()`, which refuses to start without it. |
 
-- **Run it at any time; it creates a table and alters nothing.** A history created before 4.4 needs
-  `4.4/add_execution_outcome_<db>.sql` as well.
+- **Run either at any time.** The first creates a table and alters nothing, and the second adds four nullable
+  columns with no default. A history created before 4.4 needs `4.4/add_execution_outcome_<db>.sql` as well.
 - **Safe under a mixed cluster.** A 4.8 node never touches the table, so the trigger rollup counts only 4.9
   nodes' firings until every node is 4.9. Until then a trigger's last run can be older than its previous
   fire time, and a 4.8 node's success does not clear its failing count.
+- **The four columns are nullable with no default.** A 4.8 node writes history rows that leave them `NULL`,
+  and never reads them; a 4.9 node's History page shows a dash for a due time and a delay it does not have,
+  no badge for an origin it does not have, and the message alone for a failure whose type it does not have.
 - A fresh install from [`tables/`](tables), and `ProvisionSchema()`, already have the table.
 
 ## Where these files moved

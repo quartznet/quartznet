@@ -62,8 +62,7 @@ internal static class AppAnyMove
     /// <summary>
     /// The tables AppAny 0.6.3 does not create, on every dialect: each is created as this package models it, with its
     /// primary key, which is the only index any of them has.
-    /// </summary>
-    /// <remarks>
+    /// </summary>    /// <remarks>
     /// <para>
     /// Named, not derived from the release that added each table. The move is a migration of the application's own,
     /// so a fresh database that applies the application's migrations from the start runs it again, after AppAny's and
@@ -77,6 +76,24 @@ internal static class AppAnyMove
     /// </para>
     /// </remarks>
     internal static readonly string[] MissingTables = ["TRIGGER_STATUS"];
+
+    /// <summary>
+    /// The columns AppAny 0.6.3's tables lack, named: the 4.9 additions to <c>EXECUTION_HISTORY</c> — when a
+    /// run was due, how late it started, why it ran, and the type of what it threw (#4333). Each is added as
+    /// this package models it, nullable with no default, as the migration adds it.
+    /// </summary>
+    /// <remarks>
+    /// Named, not derived from what the model marks as added by a release, for the reason
+    /// <see cref="MissingTables" /> gives: a list derived from the model would also add a column a later
+    /// release added, and that release's migration would add it a second time.
+    /// </remarks>
+    internal static readonly (string Table, string Column)[] MissingColumns =
+    [
+        ("EXECUTION_HISTORY", "DUE_TIME"),
+        ("EXECUTION_HISTORY", "START_DELAY"),
+        ("EXECUTION_HISTORY", "ORIGIN"),
+        ("EXECUTION_HISTORY", "EXCEPTION_TYPE"),
+    ];
 
     /// <summary>A column AppAny declares otherwise, as AppAny declares it.</summary>
     internal sealed record AppAnyColumn(string Table, string Column, string StoreType, QuartzColumnKind Kind, bool Nullable);
@@ -162,6 +179,21 @@ internal static class AppAnyMove
         foreach (string table in MissingTables)
         {
             CreateTable(migrationBuilder, naming, dialect.Table(table));
+        }
+
+        foreach ((string table, string column) in MissingColumns)
+        {
+            QuartzColumnDefinition ours = dialect.Table(table).Columns.Single(c => c.Name == column);
+            migrationBuilder.Operations.Add(new AddColumnOperation
+            {
+                Name = naming.Column(ours.Name),
+                Table = naming.Table(table),
+                Schema = naming.Schema,
+                ClrType = ClrType(ours.Kind),
+                ColumnType = ours.StoreType,
+                IsNullable = ours.Nullable,
+                DefaultValue = ours.DefaultValue,
+            });
         }
 
         foreach (QuartzTableDefinition table in dialect.Tables)

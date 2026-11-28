@@ -18,5 +18,9 @@
   "manual": false,
   "fireInstanceId": null,
   "input": null,
-  "inputTooLarge": false
+  "inputTooLarge": false,
+  "dueTimeUtc": null,
+  "startDelay": null,
+  "origin": null,
+  "exceptionType": null
 }

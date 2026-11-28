@@ -184,6 +184,13 @@ public static class AdoConstants
     internal const string Migration49TriggerStatus = "4.9/add_trigger_status_{0}.sql";
 
     /// <summary>
+    /// The migration that adds when a run was due, how late it started and why it ran to
+    /// <see cref="TableExecutionHistory" />, which a database created by 4.8 or earlier needs: a 4.9 node
+    /// writes these columns with every history row (#4333).
+    /// </summary>
+    internal const string Migration49ExecutionHistory = "4.9/add_execution_due_delay_origin_{0}.sql";
+
+    /// <summary>
     /// The columns only a feature that is off by default reads or writes, on a table only that feature
     /// reads — probed, like <see cref="OptionalTableNames" />, only when the feature is on.
     /// </summary>
@@ -202,7 +209,11 @@ public static class AdoConstants
         (TableExecutionHistory, ColumnManual, Migration44ExecutionOutcome, ExecutionHistoryFeature),
         (TableExecutionHistory, ColumnFireInstanceId, Migration44ExecutionOutcome, ExecutionHistoryFeature),
         (TableExecutionHistory, ColumnJobInput, Migration44ExecutionOutcome, ExecutionHistoryFeature),
-        (TableExecutionHistory, ColumnJobInputTooLarge, Migration44ExecutionOutcome, ExecutionHistoryFeature)
+        (TableExecutionHistory, ColumnJobInputTooLarge, Migration44ExecutionOutcome, ExecutionHistoryFeature),
+        (TableExecutionHistory, ColumnDueTime, Migration49ExecutionHistory, ExecutionHistoryFeature),
+        (TableExecutionHistory, ColumnStartDelay, Migration49ExecutionHistory, ExecutionHistoryFeature),
+        (TableExecutionHistory, ColumnOrigin, Migration49ExecutionHistory, ExecutionHistoryFeature),
+        (TableExecutionHistory, ColumnExceptionType, Migration49ExecutionHistory, ExecutionHistoryFeature)
     ];
 
     /// <summary>
@@ -211,8 +222,8 @@ public static class AdoConstants
     /// store keeping its history there will start.
     /// </summary>
     /// <remarks>
-    /// Ordered by the folder's version rather than as listed, because the migrations are cumulative and
-    /// a later one may alter a table an earlier one created.
+    /// Ordered by the folder's version, and by name within a folder, rather than as listed, because the
+    /// migrations are cumulative and a later one may alter a table an earlier one created.
     /// </remarks>
     internal static readonly string[] OptionalMigrations =
     [
@@ -220,6 +231,7 @@ public static class AdoConstants
             .Concat(OptionalColumnNames.Select(c => c.Migration))
             .Distinct(StringComparer.Ordinal)
             .OrderBy(MigrationVersion)
+            .ThenBy(m => m, StringComparer.Ordinal)
     ];
 
     /// <summary>
@@ -814,6 +826,43 @@ public static class AdoConstants
     /// Added by the optional 4.4 migration, nullable as every 4.x migration's column is.
     /// </remarks>
     public const string ColumnJobInputTooLarge = "JOB_INPUT_TOO_LARGE";
+
+    /// <summary>
+    /// The <c>DUE_TIME</c> column of <see cref="TableExecutionHistory" />: when the run was due, the
+    /// occurrence it serves, as an epoch-millisecond timestamp like <see cref="ColumnFiredTime" />.
+    /// </summary>
+    /// <remarks>
+    /// Added by the optional 4.9 migration. <see langword="null" /> on a row a 4.8 node wrote.
+    /// </remarks>
+    public const string ColumnDueTime = "DUE_TIME";
+
+    /// <summary>
+    /// The <c>START_DELAY</c> column of <see cref="TableExecutionHistory" />: how late the run's job
+    /// started, in ticks, as <see cref="ColumnRunTime" /> holds its duration.
+    /// </summary>
+    /// <remarks>
+    /// Added by the optional 4.9 migration. <see langword="null" /> on a row a 4.8 node wrote.
+    /// </remarks>
+    public const string ColumnStartDelay = "START_DELAY";
+
+    /// <summary>
+    /// The <c>ORIGIN</c> column of <see cref="TableExecutionHistory" />: the integer of the run's
+    /// <c>FiringOrigin</c>.
+    /// </summary>
+    /// <remarks>
+    /// Added by the optional 4.9 migration. <see langword="null" /> on a row a 4.8 node wrote.
+    /// </remarks>
+    public const string ColumnOrigin = "ORIGIN";
+
+    /// <summary>
+    /// The <c>EXCEPTION_TYPE</c> column of <see cref="TableExecutionHistory" />: the full name of the type
+    /// of what the job threw.
+    /// </summary>
+    /// <remarks>
+    /// Added by the optional 4.9 migration. <see langword="null" /> on a row a 4.8 node wrote, and on one
+    /// whose job did not throw.
+    /// </remarks>
+    public const string ColumnExceptionType = "EXCEPTION_TYPE";
 
     // TableJobStatus columns names
     /// <summary>

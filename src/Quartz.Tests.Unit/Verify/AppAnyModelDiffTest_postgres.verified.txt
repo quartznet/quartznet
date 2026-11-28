@@ -7,6 +7,10 @@ repaired: AppAny's schema has it wrong, and the move changes it
   CreateTable quartz.qrtz_trigger_status
 
 converged: harmless, changed in place with no table rebuilt and no column narrowed
+  AddColumn quartz.qrtz_execution_history.due_time bigint NULL
+  AddColumn quartz.qrtz_execution_history.exception_type text NULL
+  AddColumn quartz.qrtz_execution_history.origin integer NULL
+  AddColumn quartz.qrtz_execution_history.start_delay bigint NULL
   AddForeignKey FK_qrtz_triggers_qrtz_job_details_sched_name_job_name_job_group on quartz.qrtz_triggers (sched_name, job_name, job_group) -> quartz.qrtz_job_details (sched_name, job_name, job_group) on delete NoAction
   DropForeignKey FK_qrtz_triggers_qrtz_job_details_sched_name_job_name_job_group on quartz.qrtz_triggers
 

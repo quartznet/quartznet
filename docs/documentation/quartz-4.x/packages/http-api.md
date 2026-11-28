@@ -703,7 +703,7 @@ missed) is in the container's `IExecutionHistoryStore`, served by eight routes:
 
 | Path | Query | Answers |
 |---|---|---|
-| `GET {ApiPath}/schedulers/{name}/history/executions` | `skip`, `take`, `includeTotalCount`, `schedulerInstanceId`, `jobContains`, `triggerContains`, `failedFinally`, and the [exact filters](#filtering-by-job-time-and-result) | A page of executions, newest first |
+| `GET {ApiPath}/schedulers/{name}/history/executions` | `skip`, `take`, `includeTotalCount`, `schedulerInstanceId`, `jobContains`, `triggerContains`, `failedFinally`, `origin`, `exceptionType`, and the [exact filters](#filtering-by-job-time-and-result) | A page of executions, newest first |
 | `GET {ApiPath}/schedulers/{name}/history/executions/{entryId}` | none | One execution, `log` and `input` included |
 | `GET {ApiPath}/schedulers/{name}/history/misfires` | `skip`, `take`, `includeTotalCount`, `schedulerInstanceId`, `triggerContains`, `jobGroup` + `jobName`, `triggerGroup` + `triggerName`, [`reasons`](#vetoes-are-listed-when-asked-for) | A page of misfires, newest first |
 | `GET {ApiPath}/schedulers/{name}/history/misfires/count` | `since`: a `DateTimeOffset`, required | `{ "count": 3 }`, `Missed` rows only |
@@ -737,7 +737,11 @@ missed) is in the container's `IExecutionHistoryStore`, served by eight routes:
       "manual": false,
       "fireInstanceId": "web-01-17",
       "input": null,
-      "inputTooLarge": false
+      "inputTooLarge": false,
+      "dueTimeUtc": "2026-08-25T23:59:58+00:00",
+      "startDelay": "00:00:02",
+      "origin": "Schedule",
+      "exceptionType": null
     }
   ],
   "hasMore": false,
@@ -768,6 +772,17 @@ missed) is in the container's `IExecutionHistoryStore`, served by eight routes:
 
 A 4.3 client ignores the seven members, and a 4.3 host sends none: its rows have no input.
 
+**When a run was due, how late it started and why it ran**, from 4.9. See [History](dashboard.md#history).
+
+| Member | What |
+|---|---|
+| `dueTimeUtc` | When the run was due: the occurrence it serves, so a backfill is due when its slot was, and a retry when its occurrence was; `null` on a row written before 4.9 |
+| `startDelay` | How late the run's job started, from when the attempt was due until the job was called; `null` on a row written before 4.9 |
+| `origin` | `Schedule`, `Manual` or `Backfill`; `null` on a row written before 4.9 |
+| `exceptionType` | The full name of the type of what the job threw; `null` on a row written before 4.9, and on a run that did not throw |
+
+A 4.8 client ignores the four members, and a 4.8 host sends none.
+
 To run a failure again with its input, `POST …/jobs/{jobGroup}/{jobName}/trigger` with `input` under the
 `QRTZ_JOB_INPUT` key of the body's `JobDataMap`. The dashboard does this through `AddQuartzHttpClient`.
 
@@ -783,10 +798,12 @@ On `…/history/executions`, from 4.4 unless the row says otherwise:
 | `firedFrom` | Fired at or after, a `DateTimeOffset` |
 | `firedBefore` | Fired before, exclusive |
 | `results` | A result in the set: `?results=Failed,Cancelled` or `?results=Failed&results=Cancelled`. A row before 4.4 matches `Succeeded` or `Failed` |
+| `origin` | One origin: `?origin=Backfill`. From 4.9 |
+| `exceptionType` | The failures of one exception type, matched exactly by its full name: `?exceptionType=System.InvalidOperationException`. From 4.9 |
 
-- A name that is no result is `400`, naming the ones that are.
+- A name that is no result is `400`, naming the ones that are. A name that is no origin is `400`, naming the ones that are.
 - `jobGroup` and `jobName`, and `triggerGroup` and `triggerName`, narrow `…/history/misfires` too.
-- **A host before 4.4 ignores these parameters**, and one before 4.6 ignores the trigger and the firing; either
+- **A host before 4.4 ignores these parameters**, and one before 4.6 ignores the trigger and the firing, and one before 4.9 the origin and the exception type; either
   answers every row. `HttpExecutionHistoryStore` reads the host's version from `GET {ApiPath}/schedulers/{name}`
   before its first filtered read, and throws `NotSupportedException` for an older host instead of sending the
   filter.

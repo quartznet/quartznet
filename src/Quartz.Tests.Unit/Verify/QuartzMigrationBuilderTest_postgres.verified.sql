@@ -28,6 +28,14 @@ CREATE TABLE quartz.qrtz_trigger_status (
     CONSTRAINT "PK_qrtz_trigger_status" PRIMARY KEY (sched_name, trigger_group, trigger_name)
 );
 
+ALTER TABLE quartz.qrtz_execution_history ADD due_time bigint;
+
+ALTER TABLE quartz.qrtz_execution_history ADD start_delay bigint;
+
+ALTER TABLE quartz.qrtz_execution_history ADD origin integer;
+
+ALTER TABLE quartz.qrtz_execution_history ADD exception_type text;
+
 CREATE INDEX idx_qrtz_eh_job_time ON quartz.qrtz_execution_history (sched_name, job_group, job_name, fired_time);
 
 CREATE INDEX idx_qrtz_eh_fire_inst ON quartz.qrtz_execution_history (sched_name, fire_instance_id);
